@@ -7,7 +7,7 @@ A marketplace of essential Claude Code plugins for developers.
 Add this marketplace to Claude Code:
 
 ```
-/plugin marketplace add nityesh/claude-code-essentials
+/plugin marketplace add https://github.com/nityeshaga/claude-code-essentials
 ```
 
 ## Available Plugins
