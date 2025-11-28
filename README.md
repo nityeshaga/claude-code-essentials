@@ -34,10 +34,13 @@ Personalized Rails tutorials that use your actual codebase for examples with spa
 - "What should I learn next?"
 
 **Commands:**
+- `/teach-me` - Learn something new!
 - `/sync-tutorials` - Sync your tutorials to a companion GitHub repo for backup and mobile reading
 
 **Storage:**
-Tutorials are stored in your project at `.claude/rails-tutor/tutorials/`. This means each codebase has its own learning trail tied to that specific codebase.
+Tutorials are stored in your project repo at `.claude/rails-tutor/tutorials/`. You should add this directory to your .gitignore to prevent this from being checked in.
+
+Run /sync-tutorials command to save your tutorial to a companion repo and version control your tutorials.
 
 ## Contributing
 

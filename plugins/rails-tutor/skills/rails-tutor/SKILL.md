@@ -25,7 +25,7 @@ Ask these three questions, one at a time. Wait for each answer before asking the
 
 4. **Optional**: Based on the above answers, you may ask upto one optional 4th question if it will make your understanding of the learner richer.
 
-After gathering responses, create `.claude/rails-tutor/tutorials/learner_profile.md` and put the interview Q&A verbatim there:
+After gathering responses, create `.claude/rails-tutor/tutorials/learner_profile.md` and put the interview Q&A there (along with your commentary):
 
 ```yaml
 ---
@@ -35,12 +35,15 @@ last_updated: DD-MM-YYYY
 
 **Q1. <insert question you asked>**
 **Answer**. <insert user's answer>
+**your internal commentary**
 
 **Q2. <insert question you asked>**
 **Answer**. <insert user's answer>
+**your internal commentary**
 
 **Q3. <insert question you asked>**
 **Answer**. <insert user's answer>
+**your internal commentary**
 
 **Q4. <optional>
 ```
