@@ -9,9 +9,9 @@ The user asks to learn something in Rails - either a specific concept or an open
 
 ## First Step: Know Your Learner
 
-**Always start by reading `.claude/rails-tutor/tutorials/learner_profile.md` if it exists.** This profile contains crucial context about who you're teaching - their background, goals, and personality. Use it to calibrate everything: what analogies will land, how fast to move, what examples resonate.
+**Always start by reading `rails-tutor/tutorials/learner_profile.md` if it exists.** This profile contains crucial context about who you're teaching - their background, goals, and personality. Use it to calibrate everything: what analogies will land, how fast to move, what examples resonate.
 
-If no tutorials exist in `.claude/rails-tutor/tutorials/` AND no learner profile exists at `.claude/rails-tutor/tutorials/learner_profile.md`, this is a brand new learner. Before teaching anything, you need to understand who you're teaching.
+If no tutorials exist in `rails-tutor/tutorials/` AND no learner profile exists at `rails-tutor/tutorials/learner_profile.md`, this is a brand new learner. Before teaching anything, you need to understand who you're teaching.
 
 **Onboarding Interview:**
 
@@ -25,7 +25,7 @@ Ask these three questions, one at a time. Wait for each answer before asking the
 
 4. **Optional**: Based on the above answers, you may ask upto one optional 4th question if it will make your understanding of the learner richer.
 
-After gathering responses, create `.claude/rails-tutor/tutorials/learner_profile.md` and put the interview Q&A there (along with your commentary):
+After gathering responses, create `rails-tutor/tutorials/learner_profile.md` and put the interview Q&A there (along with your commentary):
 
 ```yaml
 ---
@@ -54,8 +54,8 @@ Our general goal is to take the user from newbie to a senior Ruby on Rails engin
 
 Before creating a tutorial, make a plan by following these steps:
 
-- **Load learner context**: Read `.claude/rails-tutor/tutorials/learner_profile.md` to understand who you're teaching - their background, goals, and personality.
-- **Survey existing knowledge**: Run `python3 ${CLAUDE_PLUGIN_ROOT}/skills/rails-tutor/scripts/index_tutorials.py` to understand what concepts have been covered, at what depth, and how well they landed (understanding scores). Optionally, dive into particular tutorials in `.claude/rails-tutor/tutorials/` to read them.
+- **Load learner context**: Read `rails-tutor/tutorials/learner_profile.md` to understand who you're teaching - their background, goals, and personality.
+- **Survey existing knowledge**: Run `python3 ${CLAUDE_PLUGIN_ROOT}/skills/rails-tutor/scripts/index_tutorials.py` to understand what concepts have been covered, at what depth, and how well they landed (understanding scores). Optionally, dive into particular tutorials in `rails-tutor/tutorials/` to read them.
 - **Identify the gap**: What's the next concept that would be most valuable? Consider both what they've asked for AND what naturally follows from their current knowledge. Think of a curriculum that would get them from their current point to Senior Engineer - what should be the next 3 topics they need to learn to advance their Rails knowledge in this direction?
 - **Find the anchor**: Locate real examples in the codebase that demonstrate this concept. Learning from abstract examples is forgettable; learning from YOUR code is sticky.
 - **(Optional) Use ask-user-question tool**: Ask clarifying questions to the learner to understand their intent, goals or expectations if it'll help you make a better plan.
@@ -64,14 +64,14 @@ Then show this curriculum plan of **next 3 TUTORIALS** to the user and proceed t
 
 ## Tutorial Creation
 
-Each tutorial is a markdown file in `.claude/rails-tutor/tutorials/` with this structure:
+Each tutorial is a markdown file in `rails-tutor/tutorials/` with this structure:
 ```yaml
 ---
 concepts: [primary_concept, related_concept_1, related_concept_2]
 description: One-paragraph summary of what this tutorial covers
 understanding_score: null  # null until quizzed, then 1-10 based on quiz performance
 last_quizzed: null  # null until first quiz, then DD-MM-YYYY
-prerequisites: [.claude/rails-tutor/tutorials/tutorial_1_name.md, .claude/rails-tutor/tutorials/tutorial_2_name.md, (upto 3 other existing tutorials)]
+prerequisites: [rails-tutor/tutorials/tutorial_1_name.md, rails-tutor/tutorials/tutorial_2_name.md, (upto 3 other existing tutorials)]
 created: DD-MM-YYYY
 last_updated: DD-MM-YYYY
 ---

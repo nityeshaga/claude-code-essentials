@@ -25,14 +25,14 @@ def create_tutorial(topic, concepts=None, output_dir=None):
     Args:
         topic: Main topic of the tutorial
         concepts: Comma-separated concepts (defaults to topic)
-        output_dir: Directory to save tutorial (defaults to .claude/rails-tutor/tutorials/)
+        output_dir: Directory to save tutorial (defaults to rails-tutor/tutorials/)
 
     Returns:
         Path to created tutorial file
     """
-    # Default output directory is .claude/rails-tutor/tutorials/ relative to cwd
+    # Default output directory is rails-tutor/tutorials/ relative to cwd
     if output_dir is None:
-        output_dir = Path(".claude/rails-tutor/tutorials")
+        output_dir = Path("rails-tutor/tutorials")
     else:
         output_dir = Path(output_dir)
 
@@ -65,7 +65,7 @@ last_updated: {date_str_frontmatter}
 
 [TODO: Opening paragraph - Start with the WHY. What problem does this concept solve? Why should the learner care about this? Connect it to their goal of becoming a senior Rails engineer.
 
-NOTE: Update the frontmatter 'prerequisites' field with up to 3 relevant past tutorials if this builds on previous concepts (e.g., [.claude/rails-tutor/tutorials/2025-11-20-active-record-basics.md, .claude/rails-tutor/tutorials/2025-11-22-callbacks.md]). Leave as empty array [] if this is foundational.]
+NOTE: Update the frontmatter 'prerequisites' field with up to 3 relevant past tutorials if this builds on previous concepts (e.g., [rails-tutor/tutorials/2025-11-20-active-record-basics.md, rails-tutor/tutorials/2025-11-22-callbacks.md]). Leave as empty array [] if this is foundational.]
 
 ## The Problem
 
@@ -146,7 +146,7 @@ def main():
     )
     parser.add_argument(
         "--output-dir",
-        help="Output directory for tutorial (defaults to .claude/rails-tutor/tutorials/)",
+        help="Output directory for tutorial (defaults to rails-tutor/tutorials/)",
         default=None
     )
 

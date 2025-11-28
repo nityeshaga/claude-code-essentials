@@ -118,23 +118,23 @@ def main():
     )
     parser.add_argument(
         "--tutorials-dir",
-        help="Path to tutorials directory (defaults to .claude/rails-tutor/tutorials/)",
+        help="Path to tutorials directory (defaults to rails-tutor/tutorials/)",
         default=None
     )
 
     args = parser.parse_args()
 
-    # Default directory is .claude/rails-tutor/tutorials/ relative to cwd
+    # Default directory is rails-tutor/tutorials/ relative to cwd
     if args.tutorials_dir:
         tutorials_dir = Path(args.tutorials_dir)
     else:
-        tutorials_dir = Path(".claude/rails-tutor/tutorials")
+        tutorials_dir = Path("rails-tutor/tutorials")
 
     today = datetime.now().date()
     tutorials = []
 
     if not tutorials_dir.exists():
-        print("No tutorials found in .claude/rails-tutor/tutorials/")
+        print("No tutorials found in rails-tutor/tutorials/")
         return
 
     for filepath in tutorials_dir.glob("*.md"):
@@ -144,7 +144,7 @@ def main():
             tutorials.append(metadata)
 
     if not tutorials:
-        print("No tutorials found in .claude/rails-tutor/tutorials/")
+        print("No tutorials found in rails-tutor/tutorials/")
         return
 
     # Sort by priority (highest first = most urgent)

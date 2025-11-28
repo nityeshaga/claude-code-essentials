@@ -77,14 +77,14 @@ def index_tutorials(tutorials_dir=None):
     Index all tutorials in the directory.
 
     Args:
-        tutorials_dir: Path to tutorials directory (defaults to .claude/rails-tutor/tutorials/)
+        tutorials_dir: Path to tutorials directory (defaults to rails-tutor/tutorials/)
 
     Returns:
         list of dicts with tutorial metadata
     """
-    # Default directory is .claude/rails-tutor/tutorials/ relative to cwd
+    # Default directory is rails-tutor/tutorials/ relative to cwd
     if tutorials_dir is None:
-        tutorials_dir = Path(".claude/rails-tutor/tutorials")
+        tutorials_dir = Path("rails-tutor/tutorials")
     else:
         tutorials_dir = Path(tutorials_dir)
 
@@ -116,7 +116,7 @@ def index_tutorials(tutorials_dir=None):
 def format_human_readable(tutorials):
     """Format tutorials as human-readable text."""
     if not tutorials:
-        return "No tutorials found. Check if .claude/rails-tutor/tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
+        return "No tutorials found. Check if rails-tutor/tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
 
     output = []
     output.append(f"Found {len(tutorials)} tutorial(s):\n")
@@ -149,7 +149,7 @@ def main():
     )
     parser.add_argument(
         "--tutorials-dir",
-        help="Path to tutorials directory (defaults to .claude/rails-tutor/tutorials/)",
+        help="Path to tutorials directory (defaults to rails-tutor/tutorials/)",
         default=None
     )
     parser.add_argument(
@@ -168,7 +168,7 @@ def main():
             if not tutorials:
                 print(json.dumps({
                     "tutorials": [],
-                    "message": "No tutorials found. Check if .claude/rails-tutor/tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
+                    "message": "No tutorials found. Check if rails-tutor/tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
                 }, indent=2))
             else:
                 print(json.dumps({"tutorials": tutorials}, indent=2))
