@@ -68,6 +68,7 @@ Each tutorial is a markdown file in `rails-tutor/tutorials/` with this structure
 ```yaml
 ---
 concepts: [primary_concept, related_concept_1, related_concept_2]
+source_repo: my-rails-app  # Auto-detected: which repo this tutorial's examples come from
 description: One-paragraph summary of what this tutorial covers
 understanding_score: null  # null until quizzed, then 1-10 based on quiz performance
 last_quizzed: null  # null until first quiz, then DD-MM-YYYY

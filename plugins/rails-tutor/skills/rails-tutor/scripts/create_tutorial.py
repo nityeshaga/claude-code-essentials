@@ -8,9 +8,24 @@ Usage:
 """
 
 import argparse
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+
+def get_repo_name():
+    """Get the current git repository name."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            return result.stdout.strip().split('/')[-1]
+    except Exception:
+        pass
+    return "unknown"
 
 
 def slugify(text):
@@ -50,9 +65,13 @@ def create_tutorial(topic, concepts=None, output_dir=None):
     if concepts is None:
         concepts = topic
 
+    # Get current repo name
+    repo_name = get_repo_name()
+
     # Create tutorial template with YAML frontmatter and embedded guidance
     template = f"""---
 concepts: {concepts}
+source_repo: {repo_name}
 description: [TODO: Fill after completing tutorial - one paragraph summary]
 understanding_score: null
 last_quizzed: null

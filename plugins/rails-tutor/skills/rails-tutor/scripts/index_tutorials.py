@@ -102,6 +102,7 @@ def index_tutorials(tutorials_dir=None):
                 "filename": filepath.name,
                 "filepath": str(filepath),
                 "concepts": frontmatter.get("concepts", ""),
+                "source_repo": frontmatter.get("source_repo", ""),
                 "description": frontmatter.get("description", ""),
                 "understanding_score": frontmatter.get("understanding_score"),
                 "last_quizzed": frontmatter.get("last_quizzed"),
@@ -124,6 +125,8 @@ def format_human_readable(tutorials):
     for tutorial in tutorials:
         output.append(f"  {tutorial['filename']}")
         output.append(f"   Concepts: {tutorial['concepts']}")
+        if tutorial.get('source_repo'):
+            output.append(f"   Source repo: {tutorial['source_repo']}")
         if tutorial['description']:
             output.append(f"   Description: {tutorial['description']}")
         score = tutorial['understanding_score']
