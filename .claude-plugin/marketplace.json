@@ -1,6 +1,6 @@
 {
   "name": "claude-code-essentials",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Essential Claude Code plugins for developers",
   "owner": {
     "name": "Nityesh Agarwal"
@@ -15,7 +15,7 @@
     {
       "name": "coding-tutor",
       "description": "Personalized coding tutorials with spaced repetition",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "source": "./plugins/coding-tutor"
     }
   ]
