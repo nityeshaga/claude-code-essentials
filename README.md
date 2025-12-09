@@ -38,9 +38,9 @@ Personalized Rails tutorials that use your actual codebase for examples with spa
 - `/sync-tutorials` - Sync your tutorials to a companion GitHub repo for backup and mobile reading
 
 **Storage:**
-Tutorials are stored in your project at `rails-tutor/tutorials/`. Add this directory to your .gitignore.
+Tutorials are stored in a central repo at `../rails-tutor-tutorials/` (sibling to your projects). This is auto-created on first use and shared across all your codebases. The `source_repo` field in each tutorial tracks which codebase the examples came from.
 
-Run /sync-tutorials command to save your tutorial to a companion repo and version control your tutorials.
+Run `/sync-tutorials` to commit and push your tutorials to GitHub for backup.
 
 ## Contributing
 

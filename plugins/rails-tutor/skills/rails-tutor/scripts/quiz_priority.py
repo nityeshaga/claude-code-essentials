@@ -10,8 +10,24 @@ Returns tutorials ordered by quiz urgency (most urgent first).
 
 import argparse
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
+
+
+def get_tutorials_repo_path():
+    """Get the path for the tutorials repo (sibling to current git project)."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            git_root = Path(result.stdout.strip())
+            return git_root.parent / "rails-tutor-tutorials"
+    except Exception:
+        pass
+    return Path("../rails-tutor-tutorials")
 
 # Ideal days between quizzes based on understanding score
 # Lower scores = more frequent review needed
@@ -118,23 +134,23 @@ def main():
     )
     parser.add_argument(
         "--tutorials-dir",
-        help="Path to tutorials directory (defaults to rails-tutor/tutorials/)",
+        help="Path to tutorials directory (defaults to ../rails-tutor-tutorials/)",
         default=None
     )
 
     args = parser.parse_args()
 
-    # Default directory is rails-tutor/tutorials/ relative to cwd
+    # Default directory is the central tutorials repo (sibling to git root)
     if args.tutorials_dir:
         tutorials_dir = Path(args.tutorials_dir)
     else:
-        tutorials_dir = Path("rails-tutor/tutorials")
+        tutorials_dir = get_tutorials_repo_path()
 
     today = datetime.now().date()
     tutorials = []
 
     if not tutorials_dir.exists():
-        print("No tutorials found in rails-tutor/tutorials/")
+        print("No tutorials found in ../rails-tutor-tutorials/")
         return
 
     for filepath in tutorials_dir.glob("*.md"):
@@ -144,7 +160,7 @@ def main():
             tutorials.append(metadata)
 
     if not tutorials:
-        print("No tutorials found in rails-tutor/tutorials/")
+        print("No tutorials found in ../rails-tutor-tutorials/")
         return
 
     # Sort by priority (highest first = most urgent)

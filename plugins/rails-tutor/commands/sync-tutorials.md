@@ -1,32 +1,25 @@
 # Sync Rails Tutor Tutorials
 
-Sync tutorials from the rails-tutor skill to a companion GitHub repository for version control and mobile reading.
+Commit and push your tutorials to the GitHub repository for backup and mobile reading.
 
 ## Instructions
 
-1. **Check for companion repo**: Look for `rails-tutor-tutorials` directory in the parent folder (e.g., if current repo is at `/path/to/my-app`, check for `/path/to/rails-tutor-tutorials`)
+1. **Go to the tutorials repo**: `cd ../rails-tutor-tutorials`
 
-2. **If companion repo doesn't exist**:
-   - Create the directory
-   - Initialize git repo
-   - Create a README.md explaining this is a personal Rails learning journey
-   - Copy all `.md` files from `rails-tutor/tutorials/`
-   - Create initial commit
-   - Run `gh repo create rails-tutor-tutorials --private --source=. --push` to create GitHub repo and push
+2. **Check for changes**: Run `git status` to see what's new or modified
 
-3. **If companion repo exists**:
-   - Copy all `.md` files from `rails-tutor/tutorials/` to the companion repo (this will overwrite existing files with same names, which is what we want for updates)
-   - Check `git status` in the companion repo
-   - If there are changes (new files or modifications):
-     - Stage all changes
-     - Create a commit with message summarizing what was added/updated (e.g., "Add new tutorial on X" or "Update quiz scores for Y")
-     - Push to origin
+3. **If there are changes**:
+   - Stage all changes: `git add -A`
+   - Create a commit with a message summarizing what was added/updated (e.g., "Add tutorial on ActiveRecord callbacks" or "Update quiz scores")
+   - Push to origin: `git push`
 
-4. **Report results**: Tell the user what was synced (new tutorials added, existing tutorials updated, or "already in sync")
+4. **If no GitHub remote exists**:
+   - Create the repo: `gh repo create rails-tutor-tutorials --private --source=. --push`
+
+5. **Report results**: Tell the user what was synced or that everything is already up to date
 
 ## Notes
 
-- The tutorials source is: `rails-tutor/tutorials/`
-- The companion repo should be at: `../rails-tutor-tutorials` (relative to current repo root)
+- The tutorials repo is at: `../rails-tutor-tutorials/`
 - Always use `--private` when creating the GitHub repo
-- Include learner_profile.md in the sync if it exists
+- This is your personal learning journey - keep it backed up!

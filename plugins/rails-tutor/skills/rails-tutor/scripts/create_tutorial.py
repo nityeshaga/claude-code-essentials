@@ -14,6 +14,21 @@ from datetime import datetime
 from pathlib import Path
 
 
+def get_tutorials_repo_path():
+    """Get the path for the tutorials repo (sibling to current git project)."""
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            git_root = Path(result.stdout.strip())
+            return git_root.parent / "rails-tutor-tutorials"
+    except Exception:
+        pass
+    return Path("../rails-tutor-tutorials")
+
+
 def get_repo_name():
     """Get the current git repository name."""
     try:
@@ -40,14 +55,14 @@ def create_tutorial(topic, concepts=None, output_dir=None):
     Args:
         topic: Main topic of the tutorial
         concepts: Comma-separated concepts (defaults to topic)
-        output_dir: Directory to save tutorial (defaults to rails-tutor/tutorials/)
+        output_dir: Directory to save tutorial (defaults to ../rails-tutor-tutorials/)
 
     Returns:
         Path to created tutorial file
     """
-    # Default output directory is rails-tutor/tutorials/ relative to cwd
+    # Default output directory is the central tutorials repo (sibling to git root)
     if output_dir is None:
-        output_dir = Path("rails-tutor/tutorials")
+        output_dir = get_tutorials_repo_path()
     else:
         output_dir = Path(output_dir)
 
@@ -165,7 +180,7 @@ def main():
     )
     parser.add_argument(
         "--output-dir",
-        help="Output directory for tutorial (defaults to rails-tutor/tutorials/)",
+        help="Output directory for tutorial (defaults to ../rails-tutor-tutorials/)",
         default=None
     )
 
