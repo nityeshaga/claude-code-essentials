@@ -11,6 +11,12 @@
       "description": "Personalized Rails tutorials with spaced repetition",
       "version": "1.0.0",
       "source": "./plugins/rails-tutor"
+    },
+    {
+      "name": "coding-tutor",
+      "description": "Personalized coding tutorials with spaced repetition",
+      "version": "1.0.0",
+      "source": "./plugins/coding-tutor"
     }
   ]
 }
