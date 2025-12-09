@@ -17,13 +17,14 @@ import sys
 from pathlib import Path
 
 
-def get_tutorials_repo_path():
+def get_all_tutorial_directories():
     """
-    Get the path for the tutorials repo (sibling to current git project).
+    Get all tutorial directories that exist (sibling to current git project).
 
-    Tries coding-tutor-tutorials first, falls back to rails-tutor-tutorials
-    for backwards compatibility with existing tutorials.
+    Returns both coding-tutor-tutorials and rails-tutor-tutorials if they exist,
+    so tutorials from both can be merged together.
     """
+    directories = []
     try:
         result = subprocess.run(
             ['git', 'rev-parse', '--show-toplevel'],
@@ -31,19 +32,22 @@ def get_tutorials_repo_path():
         )
         if result.returncode == 0:
             git_root = Path(result.stdout.strip())
-            # Try coding-tutor-tutorials first
+            # Check both directories
             coding_tutor_path = git_root.parent / "coding-tutor-tutorials"
-            if coding_tutor_path.exists():
-                return coding_tutor_path
-            # Fall back to rails-tutor-tutorials for backwards compatibility
             rails_tutor_path = git_root.parent / "rails-tutor-tutorials"
+
+            if coding_tutor_path.exists():
+                directories.append(coding_tutor_path)
             if rails_tutor_path.exists():
-                return rails_tutor_path
-            # Default to coding-tutor-tutorials if neither exists
-            return coding_tutor_path
+                directories.append(rails_tutor_path)
+
+            # If neither exists, return default path for error messaging
+            if not directories:
+                directories.append(coding_tutor_path)
     except Exception:
-        pass
-    return Path("../coding-tutor-tutorials")
+        directories.append(Path("../coding-tutor-tutorials"))
+
+    return directories
 
 
 def extract_frontmatter(filepath):
@@ -104,42 +108,44 @@ def extract_frontmatter(filepath):
 
 def index_tutorials(tutorials_dir=None):
     """
-    Index all tutorials in the directory.
+    Index all tutorials from all tutorial directories.
 
     Args:
-        tutorials_dir: Path to tutorials directory (defaults to ../coding-tutor-tutorials/)
+        tutorials_dir: Path to tutorials directory (if specified, only indexes that dir)
 
     Returns:
         list of dicts with tutorial metadata
     """
-    # Default directory is the central tutorials repo (sibling to git root)
-    if tutorials_dir is None:
-        tutorials_dir = get_tutorials_repo_path()
-    else:
-        tutorials_dir = Path(tutorials_dir)
-
-    if not tutorials_dir.exists():
-        return []
-
     tutorials = []
 
-    # Find all .md files in tutorials directory
-    for filepath in sorted(tutorials_dir.glob("*.md")):
-        frontmatter = extract_frontmatter(filepath)
+    # If specific directory provided, only index that one
+    if tutorials_dir is not None:
+        directories = [Path(tutorials_dir)]
+    else:
+        # Get all tutorial directories (coding-tutor-tutorials and rails-tutor-tutorials)
+        directories = get_all_tutorial_directories()
 
-        if frontmatter:
-            tutorials.append({
-                "filename": filepath.name,
-                "filepath": str(filepath),
-                "concepts": frontmatter.get("concepts", ""),
-                "source_repo": frontmatter.get("source_repo", ""),
-                "description": frontmatter.get("description", ""),
-                "understanding_score": frontmatter.get("understanding_score"),
-                "last_quizzed": frontmatter.get("last_quizzed"),
-                "prerequisites": frontmatter.get("prerequisites", []),
-                "created": frontmatter.get("created", ""),
-                "last_updated": frontmatter.get("last_updated", "")
-            })
+    for tutorials_dir in directories:
+        if not tutorials_dir.exists():
+            continue
+
+        # Find all .md files in tutorials directory
+        for filepath in sorted(tutorials_dir.glob("*.md")):
+            frontmatter = extract_frontmatter(filepath)
+
+            if frontmatter:
+                tutorials.append({
+                    "filename": filepath.name,
+                    "filepath": str(filepath),
+                    "concepts": frontmatter.get("concepts", ""),
+                    "source_repo": frontmatter.get("source_repo", ""),
+                    "description": frontmatter.get("description", ""),
+                    "understanding_score": frontmatter.get("understanding_score"),
+                    "last_quizzed": frontmatter.get("last_quizzed"),
+                    "prerequisites": frontmatter.get("prerequisites", []),
+                    "created": frontmatter.get("created", ""),
+                    "last_updated": frontmatter.get("last_updated", "")
+                })
 
     return tutorials
 

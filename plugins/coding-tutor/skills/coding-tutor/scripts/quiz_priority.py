@@ -15,13 +15,14 @@ from datetime import datetime
 from pathlib import Path
 
 
-def get_tutorials_repo_path():
+def get_all_tutorial_directories():
     """
-    Get the path for the tutorials repo (sibling to current git project).
+    Get all tutorial directories that exist (sibling to current git project).
 
-    Tries coding-tutor-tutorials first, falls back to rails-tutor-tutorials
-    for backwards compatibility with existing tutorials.
+    Returns both coding-tutor-tutorials and rails-tutor-tutorials if they exist,
+    so tutorials from both can be merged together.
     """
+    directories = []
     try:
         result = subprocess.run(
             ['git', 'rev-parse', '--show-toplevel'],
@@ -29,19 +30,22 @@ def get_tutorials_repo_path():
         )
         if result.returncode == 0:
             git_root = Path(result.stdout.strip())
-            # Try coding-tutor-tutorials first
+            # Check both directories
             coding_tutor_path = git_root.parent / "coding-tutor-tutorials"
-            if coding_tutor_path.exists():
-                return coding_tutor_path
-            # Fall back to rails-tutor-tutorials for backwards compatibility
             rails_tutor_path = git_root.parent / "rails-tutor-tutorials"
+
+            if coding_tutor_path.exists():
+                directories.append(coding_tutor_path)
             if rails_tutor_path.exists():
-                return rails_tutor_path
-            # Default to coding-tutor-tutorials if neither exists
-            return coding_tutor_path
+                directories.append(rails_tutor_path)
+
+            # If neither exists, return default path for error messaging
+            if not directories:
+                directories.append(coding_tutor_path)
     except Exception:
-        pass
-    return Path("../coding-tutor-tutorials")
+        directories.append(Path("../coding-tutor-tutorials"))
+
+    return directories
 
 # Ideal days between quizzes based on understanding score
 # Lower scores = more frequent review needed
@@ -148,33 +152,40 @@ def main():
     )
     parser.add_argument(
         "--tutorials-dir",
-        help="Path to tutorials directory (defaults to ../coding-tutor-tutorials/)",
+        help="Path to tutorials directory (if specified, only searches that dir)",
         default=None
     )
 
     args = parser.parse_args()
 
-    # Default directory is the central tutorials repo (sibling to git root)
-    if args.tutorials_dir:
-        tutorials_dir = Path(args.tutorials_dir)
-    else:
-        tutorials_dir = get_tutorials_repo_path()
-
     today = datetime.now().date()
     tutorials = []
 
-    if not tutorials_dir.exists():
+    # If specific directory provided, only search that one
+    if args.tutorials_dir:
+        directories = [Path(args.tutorials_dir)]
+    else:
+        # Get all tutorial directories (coding-tutor-tutorials and rails-tutor-tutorials)
+        directories = get_all_tutorial_directories()
+
+    found_any_dir = False
+    for tutorials_dir in directories:
+        if not tutorials_dir.exists():
+            continue
+        found_any_dir = True
+
+        for filepath in tutorials_dir.glob("*.md"):
+            metadata = parse_frontmatter(filepath)
+            if metadata:
+                metadata['priority'] = calculate_priority(metadata, today)
+                tutorials.append(metadata)
+
+    if not found_any_dir:
         print("No tutorials found in ../coding-tutor-tutorials/")
         return
 
-    for filepath in tutorials_dir.glob("*.md"):
-        metadata = parse_frontmatter(filepath)
-        if metadata:
-            metadata['priority'] = calculate_priority(metadata, today)
-            tutorials.append(metadata)
-
     if not tutorials:
-        print("No tutorials found in ../coding-tutor-tutorials/")
+        print("No tutorials found")
         return
 
     # Sort by priority (highest first = most urgent)
