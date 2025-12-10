@@ -180,6 +180,8 @@ The script gives you an ordered list with `understanding_score` and `last_quizze
 
 A quiz isn't an exam - it's a conversation that reveals understanding. Ask questions that expose mental models, not just syntax recall. The goal is to find the edges of their knowledge: where does solid understanding fade into uncertainty?
 
+**Ask only 1 question at a time.** Wait for the learner's answer before asking the next question.
+
 Mix question types based on what the concept demands:
 - Conceptual ("when would you use X over Y?")
 - Code reading ("what does this code in your app do?")

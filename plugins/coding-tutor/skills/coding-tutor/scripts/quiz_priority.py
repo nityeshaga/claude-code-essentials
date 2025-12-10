@@ -143,6 +143,8 @@ def main():
         return
 
     for filepath in tutorials_path.glob("*.md"):
+        if filepath.name == "learner_profile.md":
+            continue
         metadata = parse_frontmatter(filepath)
         if metadata:
             metadata['priority'] = calculate_priority(metadata, today)
