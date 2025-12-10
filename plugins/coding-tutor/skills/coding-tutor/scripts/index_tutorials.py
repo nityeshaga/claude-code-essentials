@@ -18,18 +18,8 @@ from pathlib import Path
 
 
 def get_tutorials_directory():
-    """Get the tutorials directory (sibling to current git project)."""
-    try:
-        result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            git_root = Path(result.stdout.strip())
-            return git_root.parent / "coding-tutor-tutorials"
-    except Exception:
-        pass
-    return Path("../coding-tutor-tutorials")
+    """Get the tutorials directory (~/coding-tutor-tutorials/)."""
+    return Path.home() / "coding-tutor-tutorials"
 
 
 def extract_frontmatter(filepath):
@@ -93,7 +83,7 @@ def index_tutorials(tutorials_dir=None):
     Index all tutorials from the tutorials directory.
 
     Args:
-        tutorials_dir: Path to tutorials directory (defaults to ../coding-tutor-tutorials/)
+        tutorials_dir: Path to tutorials directory (defaults to ~/coding-tutor-tutorials/)
 
     Returns:
         list of dicts with tutorial metadata
@@ -132,7 +122,7 @@ def index_tutorials(tutorials_dir=None):
 def format_human_readable(tutorials):
     """Format tutorials as human-readable text."""
     if not tutorials:
-        return "No tutorials found. Check if ../coding-tutor-tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
+        return "No tutorials found. Check if ~/coding-tutor-tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
 
     output = []
     output.append(f"Found {len(tutorials)} tutorial(s):\n")
@@ -167,7 +157,7 @@ def main():
     )
     parser.add_argument(
         "--tutorials-dir",
-        help="Path to tutorials directory (defaults to ../coding-tutor-tutorials/)",
+        help="Path to tutorials directory (defaults to ~/coding-tutor-tutorials/)",
         default=None
     )
     parser.add_argument(
@@ -186,7 +176,7 @@ def main():
             if not tutorials:
                 print(json.dumps({
                     "tutorials": [],
-                    "message": "No tutorials found. Check if ../coding-tutor-tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
+                    "message": "No tutorials found. Check if ~/coding-tutor-tutorials/learner_profile.md exists - if not, onboard the learner first. If it exists, create their first tutorial using their profile context."
                 }, indent=2))
             else:
                 print(json.dumps({"tutorials": tutorials}, indent=2))

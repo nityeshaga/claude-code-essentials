@@ -16,18 +16,8 @@ from pathlib import Path
 
 
 def get_tutorials_directory():
-    """Get the tutorials directory (sibling to current git project)."""
-    try:
-        result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            git_root = Path(result.stdout.strip())
-            return git_root.parent / "coding-tutor-tutorials"
-    except Exception:
-        pass
-    return Path("../coding-tutor-tutorials")
+    """Get the tutorials directory (~/coding-tutor-tutorials/)."""
+    return Path.home() / "coding-tutor-tutorials"
 
 # Ideal days between quizzes based on understanding score
 # Lower scores = more frequent review needed
@@ -134,7 +124,7 @@ def main():
     )
     parser.add_argument(
         "--tutorials-dir",
-        help="Path to tutorials directory (defaults to ../coding-tutor-tutorials/)",
+        help="Path to tutorials directory (defaults to ~/coding-tutor-tutorials/)",
         default=None
     )
 
@@ -149,7 +139,7 @@ def main():
         tutorials_path = get_tutorials_directory()
 
     if not tutorials_path.exists():
-        print("No tutorials found in ../coding-tutor-tutorials/")
+        print("No tutorials found in ~/coding-tutor-tutorials/")
         return
 
     for filepath in tutorials_path.glob("*.md"):

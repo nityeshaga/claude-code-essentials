@@ -15,18 +15,8 @@ from pathlib import Path
 
 
 def get_tutorials_repo_path():
-    """Get the path for the tutorials repo (sibling to current git project)."""
-    try:
-        result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            git_root = Path(result.stdout.strip())
-            return git_root.parent / "coding-tutor-tutorials"
-    except Exception:
-        pass
-    return Path("../coding-tutor-tutorials")
+    """Get the path for the tutorials repo (~/coding-tutor-tutorials/)."""
+    return Path.home() / "coding-tutor-tutorials"
 
 
 def get_repo_name():
@@ -70,7 +60,7 @@ def create_tutorial(topic, concepts=None, output_dir=None):
     Args:
         topic: Main topic of the tutorial
         concepts: Comma-separated concepts (defaults to topic)
-        output_dir: Directory to save tutorial (defaults to ../coding-tutor-tutorials/)
+        output_dir: Directory to save tutorial (defaults to ~/coding-tutor-tutorials/)
 
     Returns:
         Path to created tutorial file
@@ -195,7 +185,7 @@ def main():
     )
     parser.add_argument(
         "--output-dir",
-        help="Output directory for tutorial (defaults to ../coding-tutor-tutorials/)",
+        help="Output directory for tutorial (defaults to ~/coding-tutor-tutorials/)",
         default=None
     )
 

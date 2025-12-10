@@ -4,7 +4,7 @@ Commit and push your tutorials to the GitHub repository for backup and mobile re
 
 ## Instructions
 
-1. **Go to the tutorials repo**: `cd ../coding-tutor-tutorials`
+1. **Go to the tutorials repo**: `cd ~/coding-tutor-tutorials`
 
 2. **Check for changes**: Run `git status` to see what's new or modified
 
@@ -20,6 +20,6 @@ Commit and push your tutorials to the GitHub repository for backup and mobile re
 
 ## Notes
 
-- The tutorials repo is at: `../coding-tutor-tutorials/`
+- The tutorials repo is at: `~/coding-tutor-tutorials/`
 - Always use `--private` when creating the GitHub repo
 - This is your personal learning journey - keep it backed up!

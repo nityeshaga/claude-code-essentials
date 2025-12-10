@@ -6,7 +6,7 @@ Usage:
     python setup_tutorials.py
     python setup_tutorials.py --create-github-repo
 
-Creates ../coding-tutor-tutorials/ if it doesn't exist, initializes git,
+Creates ~/coding-tutor-tutorials/ if it doesn't exist, initializes git,
 and optionally creates a private GitHub repository.
 """
 
@@ -17,19 +17,8 @@ from pathlib import Path
 
 
 def get_tutorials_repo_path():
-    """Get the path for the tutorials repo (sibling to current git project)."""
-    try:
-        result = subprocess.run(
-            ['git', 'rev-parse', '--show-toplevel'],
-            capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            git_root = Path(result.stdout.strip())
-            return git_root.parent / "coding-tutor-tutorials"
-    except Exception:
-        pass
-    # Fallback to relative path if not in a git repo
-    return Path("../coding-tutor-tutorials")
+    """Get the path for the tutorials repo (~/coding-tutor-tutorials/)."""
+    return Path.home() / "coding-tutor-tutorials"
 
 
 README_CONTENT = """# Coding Tutor - My Learning Journey

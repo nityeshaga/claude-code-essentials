@@ -39,7 +39,7 @@ Personalized coding tutorials that use your actual codebase for examples with sp
 - `/sync-tutorials` - Sync your tutorials to GitHub for backup
 
 **Storage:**
-Tutorials are stored in a central repo at `../coding-tutor-tutorials/` (sibling to your projects). This is auto-created on first use and shared across all your codebases. The `source_repo` field in each tutorial tracks which codebase the examples came from.
+Tutorials are stored at `~/coding-tutor-tutorials/`. This is auto-created on first use and shared across all your projects. The `source_repo` field in each tutorial tracks which codebase the examples came from.
 
 ## Contributing
 
