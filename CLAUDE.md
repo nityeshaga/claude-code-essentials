@@ -42,3 +42,4 @@ Use semantic versioning:
 - [Plugins](https://code.claude.com/docs/en/plugins)
 - [Marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Skills](https://code.claude.com/docs/en/skills)
+- Keep the README.md upto date
