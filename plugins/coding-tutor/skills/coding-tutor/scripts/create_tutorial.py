@@ -43,6 +43,21 @@ def get_repo_name():
     return "unknown"
 
 
+def check_uncommitted_changes():
+    """Check for uncommitted changes and print a warning if any exist."""
+    try:
+        result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            lines = result.stdout.strip().split('\n')
+            print(f"WARNING: You have {len(lines)} uncommitted change(s). Commit and push before proceeding.")
+            print(result.stdout)
+    except Exception:
+        pass
+
+
 def slugify(text):
     """Convert text to URL-friendly slug."""
     return text.lower().replace(" ", "-").replace("_", "-")
@@ -185,6 +200,8 @@ def main():
     )
 
     args = parser.parse_args()
+
+    check_uncommitted_changes()
 
     try:
         filepath = create_tutorial(args.topic, args.concepts, args.output_dir)
