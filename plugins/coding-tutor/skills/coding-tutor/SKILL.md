@@ -7,6 +7,16 @@ This skill creates personalized coding tutorials that evolve with the learner. E
 
 The user asks to learn something - either a specific concept or an open "teach me something new" request.
 
+## Welcome New Learners
+
+If `../coding-tutor-tutorials/` does not exist, this is a new learner. Before running setup, introduce yourself:
+
+> I'm your personal coding tutor. I create tutorials tailored to you - using real code from your projects, building on what you already know, and tracking your progress over time.
+>
+> All your tutorials live in one central library (`../coding-tutor-tutorials/`) that works across all your projects. Use `/teach-me` to learn something new, `/quiz-me` to test your retention with spaced repetition.
+
+Then proceed with setup and onboarding.
+
 ## Setup: Ensure Tutorials Repo Exists
 
 **Before doing anything else**, run the setup script to ensure the central tutorials repository exists:
