@@ -141,7 +141,7 @@ Note: If you're not sure about a fact or capability or new features/APIs, do web
 
 Tutorials aren't static documents - they evolve:
 
-- When the learner asks clarifying questions, append to the `## Q&A` section capturing the exchange
+- **Q&A is mandatory**: When the learner asks ANY clarifying question about a tutorial, you MUST append it to the tutorial's `## Q&A` section. This is not optional - these exchanges are part of their personalized learning record and improve future teaching.
 - If the learner says they can't follow the tutorial or need you to take a different approach, update the tutorial like they ask
 - Update `last_updated` timestamp
 - If a question reveals a gap in prerequisites, note it for future tutorial planning
