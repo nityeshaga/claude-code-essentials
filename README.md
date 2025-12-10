@@ -12,13 +12,13 @@ Add this marketplace to Claude Code:
 
 ## Available Plugins
 
-### rails-tutor
+### coding-tutor
 
-Personalized Rails tutorials that use your actual codebase for examples with spaced repetition quizzes.
+Personalized coding tutorials that use your actual codebase for examples with spaced repetition quizzes.
 
 **Install:**
 ```
-/plugin install rails-tutor@claude-code-essentials
+/plugin install coding-tutor@claude-code-essentials
 ```
 
 **Features:**
@@ -29,18 +29,17 @@ Personalized Rails tutorials that use your actual codebase for examples with spa
 - Curriculum planning based on your current knowledge
 
 **Usage:**
-- "Teach me about ActiveRecord associations"
-- "Quiz me on Rails concepts"
+- "Teach me about React hooks"
+- "Quiz me on something"
 - "What should I learn next?"
 
 **Commands:**
-- `/teach-me` - Learn something new!
-- `/sync-tutorials` - Sync your tutorials to a companion GitHub repo for backup and mobile reading
+- `/teach-me` - Learn something new
+- `/quiz-me` - Test your retention with spaced repetition
+- `/sync-tutorials` - Sync your tutorials to GitHub for backup
 
 **Storage:**
-Tutorials are stored in a central repo at `../rails-tutor-tutorials/` (sibling to your projects). This is auto-created on first use and shared across all your codebases. The `source_repo` field in each tutorial tracks which codebase the examples came from.
-
-Run `/sync-tutorials` to commit and push your tutorials to GitHub for backup.
+Tutorials are stored in a central repo at `../coding-tutor-tutorials/` (sibling to your projects). This is auto-created on first use and shared across all your codebases. The `source_repo` field in each tutorial tracks which codebase the examples came from.
 
 ## Contributing
 
