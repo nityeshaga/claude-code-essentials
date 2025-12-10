@@ -1,9 +1,0 @@
-{
-  "name": "rails-tutor",
-  "version": "1.0.0",
-  "description": "Personalized Rails tutorials that use your actual codebase for examples with spaced repetition quizzes",
-  "author": {
-    "name": "Nityesh Agarwal"
-  },
-  "keywords": ["rails", "ruby", "tutorial", "learning", "spaced-repetition"]
-}

@@ -1,21 +1,15 @@
 {
   "name": "claude-code-essentials",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Essential Claude Code plugins for developers",
   "owner": {
     "name": "Nityesh Agarwal"
   },
   "plugins": [
     {
-      "name": "rails-tutor",
-      "description": "Personalized Rails tutorials with spaced repetition",
-      "version": "1.0.0",
-      "source": "./plugins/rails-tutor"
-    },
-    {
       "name": "coding-tutor",
       "description": "Personalized coding tutorials with spaced repetition",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "source": "./plugins/coding-tutor"
     }
   ]

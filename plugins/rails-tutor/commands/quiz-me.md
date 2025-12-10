@@ -1,1 +1,0 @@
-Quiz me using the rails-tutor skill
