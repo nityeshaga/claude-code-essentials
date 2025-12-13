@@ -1,0 +1,9 @@
+{
+  "name": "basics",
+  "version": "1.0.0",
+  "description": "Essential Claude Code commands, agents, hooks, and skills for everyday development workflows",
+  "author": {
+    "name": "Nityesh Agarwal"
+  },
+  "keywords": ["commands", "agents", "hooks", "skills", "workflow", "productivity"]
+}
