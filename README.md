@@ -4,22 +4,19 @@ A marketplace of essential Claude Code plugins for developers.
 
 ## Installation
 
-Add this marketplace to Claude Code:
+1. Run `/plugin` to open the plugin manager
+2. Go to **Marketplaces** tab (use Tab to cycle between tabs)
+3. Select **+ Add Marketplace**
+4. Enter: `nityeshaga/claude-code-essentials`
+5. Press Enter to add
 
-```
-/plugin marketplace add https://github.com/nityeshaga/claude-code-essentials
-```
+Then install plugins from the **Discover** tab.
 
 ## Available Plugins
 
 ### coding-tutor
 
 Personalized coding tutorials that use your actual codebase for examples with spaced repetition quizzes.
-
-**Install:**
-```
-/plugin install coding-tutor@claude-code-essentials
-```
 
 **Features:**
 - Personalized onboarding to understand your learning goals
@@ -46,11 +43,6 @@ Tutorials are stored at `~/coding-tutor-tutorials/`. This is auto-created on fir
 ### basics
 
 Essential Claude Code commands, agents, hooks, and skills for everyday development workflows.
-
-**Install:**
-```
-/plugin install basics@claude-code-essentials
-```
 
 **Commands (15):**
 `/cc`, `/cleanup`, `/commit-push`, `/create-developer-doc`, `/create-pitch`, `/depcheck`, `/fix`, `/issue`, `/pinpoint`, `/plan`, `/review`, `/study`, `/tailwind-upgrade`, `/teach`, `/work`

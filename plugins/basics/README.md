@@ -4,9 +4,10 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 
 ## Installation
 
-```
-/plugin install basics@claude-code-essentials
-```
+1. Run `/plugin` to open the plugin manager
+2. Go to **Marketplaces** tab (use Tab to cycle)
+3. Select **+ Add Marketplace** → enter `nityeshaga/claude-code-essentials`
+4. Go to **Discover** tab and select **basics** to install
 
 ## Commands
 

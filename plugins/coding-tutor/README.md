@@ -14,9 +14,10 @@ This project starts with programming - the domain where AI has the most immediat
 
 ## Install
 
-```
-/plugin install coding-tutor@claude-code-essentials
-```
+1. Run `/plugin` to open the plugin manager
+2. Go to **Marketplaces** tab (use Tab to cycle)
+3. Select **+ Add Marketplace** → enter `nityeshaga/claude-code-essentials`
+4. Go to **Discover** tab and select **coding-tutor** to install
 
 ## Features
 
