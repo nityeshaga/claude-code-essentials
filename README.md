@@ -55,8 +55,10 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 **Hooks:**
 - `block-main-push` - Prevents accidental git pushes to main branch
 
-**Skills (4):**
+**Skills (6):**
 - `ai-tool-designer` - Designing tools for AI agents
+- `dhh-rails-expert` - DHH-style Rails development guidance
+- `kamal-deploy` - Expert Kamal deployment for containerized apps
 - `mcp-builder` - MCP server development guide
 - `prompt-engineer` - Prompt engineering for AI systems
 - `skill-creator` - Guide for creating Claude skills
