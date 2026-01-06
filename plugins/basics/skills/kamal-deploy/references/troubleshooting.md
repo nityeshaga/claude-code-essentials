@@ -1,14 +1,110 @@
 # Kamal Troubleshooting Guide
 
 ## Table of Contents
-1. [Deployment Issues](#deployment-issues)
-2. [Container Issues](#container-issues)
-3. [Proxy & SSL Issues](#proxy--ssl-issues)
-4. [Registry Issues](#registry-issues)
-5. [SSH Issues](#ssh-issues)
-6. [Accessory Issues](#accessory-issues)
-7. [Performance Issues](#performance-issues)
-8. [Debugging Commands](#debugging-commands)
+1. [Local Environment Issues](#local-environment-issues)
+2. [Deployment Issues](#deployment-issues)
+3. [Container Issues](#container-issues)
+4. [Proxy & SSL Issues](#proxy--ssl-issues)
+5. [Registry Issues](#registry-issues)
+6. [SSH Issues](#ssh-issues)
+7. [Accessory Issues](#accessory-issues)
+8. [Performance Issues](#performance-issues)
+9. [Debugging Commands](#debugging-commands)
+
+## Local Environment Issues
+
+### Docker Desktop malware warning on macOS
+
+**Symptoms:** macOS XProtect blocks `com.docker.vmnetd` with "Malware Blocked" popup that repeats every few seconds.
+
+**Solutions:**
+1. **Best approach - use remote builder instead of local Docker:**
+   ```yaml
+   builder:
+     arch: amd64
+     remote: ssh://root@YOUR_SERVER_IP
+   ```
+   This builds on your target server, completely bypassing local Docker.
+
+2. **If you need local Docker, install CLI-only via Homebrew:**
+   ```bash
+   brew install docker docker-buildx
+   ```
+   Then configure buildx plugin path:
+   ```bash
+   mkdir -p ~/.docker
+   echo '{"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]}' > ~/.docker/config.json
+   ```
+
+3. **If using Docker Desktop, try:**
+   ```bash
+   sudo xattr -rd com.apple.quarantine /Applications/Docker.app
+   ```
+   Or go to System Settings → Privacy & Security → "Allow Anyway" for Docker.
+
+### Kamal 1.x vs 2.x config incompatibility
+
+**Symptoms:** Errors like `unknown key: proxy` or `unknown key: traefik`.
+
+**Cause:** Kamal 1.x uses `traefik` for reverse proxy config, Kamal 2.x uses `proxy`.
+
+**Solutions:**
+```bash
+# Check your version
+kamal version
+
+# If on 1.x, upgrade to 2.x
+gem install kamal
+```
+
+**Config differences:**
+```yaml
+# Kamal 1.x
+traefik:
+  options:
+    publish:
+      - "80:80"
+
+# Kamal 2.x
+proxy:
+  ssl: false
+  host: myapp.com
+```
+
+### 37signals repos have internal .env.erb
+
+**Symptoms:** Error `No such file or directory - op` when deploying open-source 37signals apps (Campfire, etc.)
+
+**Cause:** The `.env.erb` file uses 37signals' internal 1Password CLI setup.
+
+**Solution:**
+```bash
+# Remove the 1Password-dependent file
+rm .env.erb
+
+# Create simple secrets file instead
+cat > .kamal/secrets << 'EOF'
+KAMAL_REGISTRY_PASSWORD=your_registry_password
+SECRET_KEY_BASE=$(openssl rand -hex 64)
+EOF
+```
+
+### Docker buildx plugin not found
+
+**Symptoms:** `Docker buildx plugin is not installed locally`
+
+**Solutions:**
+```bash
+# Install via Homebrew (macOS)
+brew install docker-buildx
+
+# Configure Docker to find it
+mkdir -p ~/.docker
+echo '{"cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"]}' > ~/.docker/config.json
+
+# Verify
+docker buildx version
+```
 
 ## Deployment Issues
 

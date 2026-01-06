@@ -44,10 +44,28 @@ Kamal deploys containerized apps to any server via SSH + Docker. Created by 37si
 
 **Mental model:** Hetzner/DigitalOcean = the computer, Kamal = deploys your app to it
 
+## Before You Start
+
+**Check these first to avoid common friction:**
+
+1. **Kamal version** - Run `kamal version`. If on 1.x, upgrade with `gem install kamal`. Config syntax changed significantly (1.x uses `traefik`, 2.x uses `proxy`).
+
+2. **Local Docker situation** - Ask the user if they have Docker working locally. If not (or if Docker Desktop is problematic on macOS), configure a remote builder:
+   ```yaml
+   builder:
+     arch: amd64
+     remote: ssh://root@SERVER_IP
+   ```
+   This builds on the target server and avoids local Docker entirely.
+
+3. **37signals open-source repos** - If deploying Campfire, HEY, or other 37signals apps, immediately delete `.env.erb` - it uses their internal 1Password setup and will fail with `op: command not found`.
+
+4. **Registry access** - Confirm the user has a container registry (Docker Hub, GHCR) and knows their credentials before writing config.
+
 ## Quick Start
 
 ```bash
-# Install
+# Install (or upgrade)
 gem install kamal
 
 # Initialize in project
