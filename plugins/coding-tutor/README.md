@@ -12,50 +12,47 @@ My belief is simple: today's AI is smarter than any private tutor anyone on the 
 
 This project starts with programming - the domain where AI has the most immediate economic impact. Use it to learn about the programs you're vibe coding and level up your skills. Don't just vibe code, vibe learn.
 
-## Install
+## Install - Claude Code
+
+### Step 1: Install the Plugin
 
 1. Run `/plugin` to open the plugin manager
 2. Go to **Marketplaces** tab (use Tab to cycle)
 3. Select **+ Add Marketplace** → enter `nityeshaga/claude-code-essentials`
 4. Go to **Discover** tab and select **coding-tutor** to install
 
-## Setup
-
-Your tutorials and learning profile are stored in the cloud. Choose one of the setup methods below based on how you use Claude.
-
-### Claude Code (CLI)
+### Step 2: Configure MCP
 
 1. **Create an account** at https://coding-tutor-api-zc08.onrender.com
 2. **Generate an API token** in Settings → API Tokens
-3. **Add MCP configuration** to `~/.claude/settings.json` or your project's `.mcp.json`:
+3. **Add the MCP server** using the CLI:
 
-```json
-{
-  "mcpServers": {
-    "coding-tutor": {
-      "type": "http",
-      "url": "https://coding-tutor-api-zc08.onrender.com/mcp",
-      "headers": {
-        "Authorization": "Bearer YOUR_API_TOKEN"
-      }
-    }
-  }
-}
+```bash
+claude mcp add --transport http \
+  coding-tutor https://coding-tutor-api-zc08.onrender.com/mcp \
+  --header "Authorization: Bearer YOUR_API_TOKEN" \
+  --scope user
 ```
 
 4. **Restart Claude Code** and run `/mcp` to verify the connection
 
-### Claude Web (claude.ai)
+## Install - Claude Web
+
+### Step 1: Load the Skill
+
+Download the SKILL.md from [`skills/coding-tutor/SKILL.md`](./skills/coding-tutor/SKILL.md). In **Claude.ai**, go to Settings → Capabilities → Skills → Add New Skill → Upload the downloaded file.
+
+### Step 2: Configure Custom Connector
 
 1. **Create an account** at https://coding-tutor-api-zc08.onrender.com
 2. **Go to Settings** to find your Claude connector credentials
-3. In **Claude.ai**, go to Settings → Integrations → Add Custom Connector
+3. In **Claude.ai**, go to Settings → Connectors → Add Custom Connector
 4. Enter:
    - **Name**: Coding Tutor
    - **URL**: `https://coding-tutor-api-zc08.onrender.com/mcp`
-   - **Client ID**: (from your Settings page)
-   - **Client Secret**: (from your Settings page)
-5. Complete the OAuth flow to authorize access
+   - **Client ID**: (from Coding Tutor Settings page)
+   - **Client Secret**: (from Coding Tutor Settings page)
+5. Once added, click on the "Connect" button and follow on-screen instructions.
 
 ## Features
 
