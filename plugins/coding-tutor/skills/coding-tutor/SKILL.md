@@ -1,37 +1,42 @@
 ---
 name: coding-tutor
-description: Personalized coding tutorials that build on your existing knowledge and use your actual codebase for examples. Creates a persistent learning trail that compounds over time using the power of AI, spaced repetition and quizes.
+description: Personalized coding tutorials that build on your existing knowledge and use your actual codebase for examples. Creates a persistent learning trail that compounds over time using the power of AI, spaced repetition and quizzes. Uses cloud storage via MCP for tutorials and learner profiles.
 ---
 
 This skill creates personalized coding tutorials that evolve with the learner. Each tutorial builds on previous ones, uses real examples from the current codebase, and maintains a persistent record of concepts mastered.
 
 The user asks to learn something - either a specific concept or an open "teach me something new" request.
 
+## MCP Tools Available
+
+This skill uses the `coding-tutor` MCP server for cloud storage. Available tools:
+
+- `mcp__coding-tutor__get_learner_profile` - Get profile with onboarding responses
+- `mcp__coding-tutor__update_learner_profile` - Create/update profile (key, question, answer, commentary)
+- `mcp__coding-tutor__list_tutorials` - List tutorials with optional filters
+- `mcp__coding-tutor__get_tutorial` - Get full tutorial by id or slug
+- `mcp__coding-tutor__create_tutorial` - Create a new tutorial
+- `mcp__coding-tutor__update_tutorial` - Update existing tutorial
+- `mcp__coding-tutor__delete_tutorial` - Delete a tutorial
+- `mcp__coding-tutor__create_quiz_session` - Record quiz results with questions asked
+- `mcp__coding-tutor__get_quiz_history` - Get quiz history for a tutorial
+- `mcp__coding-tutor__get_quiz_recommendations` - Get spaced repetition recommendations
+
 ## Welcome New Learners
 
-If `~/coding-tutor-tutorials/` does not exist, this is a new learner. Before running setup, introduce yourself:
+Call `mcp__coding-tutor__get_learner_profile` to check if a profile exists. If the profile is incomplete (`complete: false` or no onboarding responses), this is a new learner. Introduce yourself:
 
 > I'm your personal coding tutor. I create tutorials tailored to you - using real code from your projects, building on what you already know, and tracking your progress over time.
 >
-> All your tutorials live in one central library (`~/coding-tutor-tutorials/`) that works across all your projects. Use `/teach-me` to learn something new, `/quiz-me` to test your retention with spaced repetition.
+> Your tutorials are stored in the cloud and sync across all your devices. Use `/teach-me` to learn something new, `/quiz-me` to test your retention with spaced repetition.
 
-Then proceed with setup and onboarding.
-
-## Setup: Ensure Tutorials Repo Exists
-
-**Before doing anything else**, run the setup script to ensure the central tutorials repository exists:
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/coding-tutor/scripts/setup_tutorials.py
-```
-
-This creates `~/coding-tutor-tutorials/` if it doesn't exist. All tutorials and the learner profile are stored there, shared across all your projects.
+Then proceed with onboarding.
 
 ## First Step: Know Your Learner
 
-**Always start by reading `~/coding-tutor-tutorials/learner_profile.md` if it exists.** This profile contains crucial context about who you're teaching - their background, goals, and personality. Use it to calibrate everything: what analogies will land, how fast to move, what examples resonate.
+**Always start by calling `mcp__coding-tutor__get_learner_profile`** to get the learner's profile. This contains crucial context about who you're teaching - their background, goals, and personality. Use it to calibrate everything: what analogies will land, how fast to move, what examples resonate.
 
-If no tutorials exist in `~/coding-tutor-tutorials/` AND no learner profile exists at `~/coding-tutor-tutorials/learner_profile.md`, this is a brand new learner. Before teaching anything, you need to understand who you're teaching.
+If the profile doesn't exist or is incomplete (`complete: false`), this is a brand new learner. Before teaching anything, you need to understand who you're teaching.
 
 **Onboarding Interview:**
 
@@ -43,29 +48,17 @@ Ask these three questions, one at a time. Wait for each answer before asking the
 
 3. **Who are you**: Tell me a bit about yourself - imagine we just met at a coworking space. - Get context that shapes how to teach them.
 
-4. **Optional**: Based on the above answers, you may ask upto one optional 4th question if it will make your understanding of the learner richer.
+4. **Optional**: Based on the above answers, you may ask up to one optional 4th question if it will make your understanding of the learner richer.
 
-After gathering responses, create `~/coding-tutor-tutorials/learner_profile.md` and put the interview Q&A there (along with your commentary):
+After gathering each response, save it along with your commentary using `mcp__coding-tutor__update_learner_profile`:
 
-```yaml
----
-created: DD-MM-YYYY
-last_updated: DD-MM-YYYY
----
-
-**Q1. <insert question you asked>**
-**Answer**. <insert user's answer>
-**your internal commentary**
-
-**Q2. <insert question you asked>**
-**Answer**. <insert user's answer>
-**your internal commentary**
-
-**Q3. <insert question you asked>**
-**Answer**. <insert user's answer>
-**your internal commentary**
-
-**Q4. <optional>
+```
+mcp__coding-tutor__update_learner_profile(
+  key: "prior_exposure",  # or "ambitious_goal", "who_are_you"
+  question: "The question you asked",
+  answer: "Their response",
+  commentary: "Your internal commentary"
+)
 ```
 
 ## Teaching Philosophy
@@ -74,8 +67,8 @@ Our general goal is to take the user from newbie to a senior engineer in record 
 
 Before creating a tutorial, make a plan by following these steps:
 
-- **Load learner context**: Read `~/coding-tutor-tutorials/learner_profile.md` to understand who you're teaching - their background, goals, and personality.
-- **Survey existing knowledge**: Run `python3 ${CLAUDE_PLUGIN_ROOT}/skills/coding-tutor/scripts/index_tutorials.py` to understand what concepts have been covered, at what depth, and how well they landed (understanding scores). Optionally, dive into particular tutorials in `~/coding-tutor-tutorials/` to read them.
+- **Load learner context**: Call `mcp__coding-tutor__get_learner_profile` to understand who you're teaching - their background, goals, and personality.
+- **Survey existing knowledge**: Call `mcp__coding-tutor__list_tutorials` to see what concepts have been covered, at what depth, and how well they landed (understanding scores). Optionally, call `mcp__coding-tutor__get_tutorial` to read specific tutorials in detail.
 - **Identify the gap**: What's the next concept that would be most valuable? Consider both what they've asked for AND what naturally follows from their current knowledge. Think of a curriculum that would get them from their current point to Senior Engineer - what should be the next 3 topics they need to learn to advance their programming knowledge in this direction?
 - **Find the anchor**: Locate real examples in the codebase that demonstrate this concept. Learning from abstract examples is forgettable; learning from YOUR code is sticky.
 - **(Optional) Use ask-user-question tool**: Ask clarifying questions to the learner to understand their intent, goals or expectations if it'll help you make a better plan.
@@ -84,40 +77,21 @@ Then show this curriculum plan of **next 3 TUTORIALS** to the user and proceed t
 
 ## Tutorial Creation
 
-Each tutorial is a markdown file in `~/coding-tutor-tutorials/` with this structure:
-```yaml
----
-concepts: [primary_concept, related_concept_1, related_concept_2]
-source_repo: my-app  # Auto-detected: which repo this tutorial's examples come from
-description: One-paragraph summary of what this tutorial covers
-understanding_score: null  # null until quizzed, then 1-10 based on quiz performance
-last_quizzed: null  # null until first quiz, then DD-MM-YYYY
-prerequisites: [~/coding-tutor-tutorials/tutorial_1_name.md, ~/coding-tutor-tutorials/tutorial_2_name.md, (upto 3 other existing tutorials)]
-created: DD-MM-YYYY
-last_updated: DD-MM-YYYY
----
+Create tutorials using `mcp__coding-tutor__create_tutorial`:
 
-Full contents of tutorial go here
-
----
-
-## Q&A
-
-Cross-questions during learning go here.
-
-## Quiz History
-
-Quiz sessions recorded here.
+```
+mcp__coding-tutor__create_tutorial(
+  title: "Tutorial Title",
+  content: "Full markdown content of the tutorial including cross-questions during learning",
+  description: "One-paragraph summary of what this tutorial covers",
+  concepts: ["primary_concept", "related_concept_1", "related_concept_2"],
+  source_repo: "my-app",  # Which repo examples come from
+  source_file: "app/models/user.rb",  # Optional: specific file referenced
+  prerequisite_ids: [1, 2, 3]  # Optional: IDs of prerequisite tutorials
+)
 ```
 
-Run `scripts/create_tutorial.py` like this to create a new tutorial with template:
-
-```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/skills/coding-tutor/scripts/create_tutorial.py "Topic Name" --concepts "Concept1,Concept2"
-```
-
-This creates an empty template of the tutorial. Then you should edit the newly created file to write in the actual tutorial.
-Qualities of a great tutorial should:
+Qualities of a great tutorial:
 
 - **Start with the "why"**: Not "here's how callbacks work" but "here's the problem in your code that callbacks solve"
 - **Use their code**: Every concept demonstrated with examples pulled from the actual codebase. Reference specific files and line numbers.
@@ -141,14 +115,22 @@ Note: If you're not sure about a fact or capability or new features/APIs, do web
 
 Tutorials aren't static documents - they evolve:
 
-- **Q&A is mandatory**: When the learner asks ANY clarifying question about a tutorial, you MUST append it to the tutorial's `## Q&A` section. This is not optional - these exchanges are part of their personalized learning record and improve future teaching.
+- **Q&A is mandatory**: When the learner asks ANY clarifying question about a tutorial, you MUST update the tutorial's `qa_section` using `mcp__coding-tutor__update_tutorial`. This is not optional - these exchanges are part of their personalized learning record and improve future teaching.
 - If the learner says they can't follow the tutorial or need you to take a different approach, update the tutorial like they ask
-- Update `last_updated` timestamp
 - If a question reveals a gap in prerequisites, note it for future tutorial planning
 
-Note: `understanding_score` is only updated through Quiz Mode, not during teaching.
+To update a tutorial:
+```
+mcp__coding-tutor__update_tutorial(
+  id: 123,
+  qa_section: "Updated Q&A content with new questions appended"
+)
+```
+
+Note: `understanding_score` is only updated through Quiz Mode via `create_quiz_session`, not during teaching.
 
 ## What Makes Great Teaching
+
 **DO**: Meet them where they are. Use their vocabulary. Reference their past struggles. Make connections to concepts they already own. Be encouraging but honest about complexity.
 
 **DON'T**: Assume knowledge not demonstrated in previous tutorials. Use generic blog-post examples when codebase examples exist. Overwhelm with every edge case upfront. Be condescending about gaps.
@@ -162,19 +144,24 @@ Remember: The goal isn't to teach programming in the abstract. It's to teach THI
 Tutorials teach. Quizzes verify. The score should reflect what the learner actually retained, not what was presented to them.
 
 **Triggers:**
-- Explicit: "Quiz me on React hooks" → quiz that specific concept
-- Open: "Quiz me on something" → run `python3 ${CLAUDE_PLUGIN_ROOT}/skills/coding-tutor/scripts/quiz_priority.py` to get a prioritized list based on spaced repetition, then choose what to quiz
+- Explicit: "Quiz me on React hooks" - quiz that specific concept
+- Open: "Quiz me on something" - call `mcp__coding-tutor__get_quiz_recommendations` to get a prioritized list based on spaced repetition, then choose what to quiz
 
 **Spaced Repetition:**
 
-When the user requests an open quiz, the priority script uses spaced repetition intervals to surface:
+When the user requests an open quiz, call:
+```
+mcp__coding-tutor__get_quiz_recommendations(limit: 5)
+```
+
+This returns tutorials prioritized by:
 - Never-quizzed tutorials (need baseline assessment)
 - Low-scored concepts that are overdue for review
 - High-scored concepts whose review interval has elapsed
 
-The script uses Fibonacci-ish intervals: score 1 = review in 2 days, score 5 = 13 days, score 8 = 55 days, score 10 = 144 days. This means weak concepts get drilled frequently while mastered ones fade into long-term review.
+The API uses Fibonacci-ish intervals: score 1 = review in 1 day, score 5 = 5 days, score 8 = 21 days, score 10 = 55 days. This means weak concepts get drilled frequently while mastered ones fade into long-term review.
 
-The script gives you an ordered list with `understanding_score` and `last_quizzed` for each tutorial. Use this to make an informed choice about what to quiz, and explain to the learner why you picked that concept ("You learned callbacks 5 days ago but scored 4/10 - let's see if it's sticking better now").
+The response includes `priority`, `days_overdue`, and `reason` for each recommendation. Use this to make an informed choice about what to quiz, and explain to the learner why you picked that concept ("You learned callbacks 5 days ago but scored 4/10 - let's see if it's sticking better now").
 
 **Philosophy:**
 
@@ -190,25 +177,39 @@ Mix question types based on what the concept demands:
 
 Use their codebase for examples whenever possible. "What does line 47 of `app/models/user.rb` do?" is more valuable than abstract snippets.
 
-**Scoring:**
+**Recording Quiz Results:**
 
-After the quiz, update `understanding_score` honestly:
+After the quiz, record the results with details of each question asked:
+```
+mcp__coding-tutor__create_quiz_session(
+  tutorial_id: 123,
+  score_after: 7,  # 1-10 based on quiz performance
+  questions_asked: [
+    {
+      question: "question 1",
+      response_summary: "Brief summary of their response and what it revealed about understanding"
+    }
+  ]
+)
+```
+
+This automatically updates the tutorial's `understanding_score` and `last_quizzed` fields. The `questions_asked` array records each question with a brief summary of what the learner's response revealed about their understanding.
+
+**Reviewing Quiz History:**
+
+To see past quiz performance and track progression over time:
+```
+mcp__coding-tutor__get_quiz_history(tutorial_id: 123, limit: 10)
+```
+
+Use this to:
+- Avoid repeating the same questions in future quizzes
+- Track how understanding has improved (or regressed) over time
+- Identify persistent gaps that keep appearing across sessions
+
+**Scoring Guidelines:**
 - **1-3**: Can't recall the concept, needs re-teaching
 - **4-5**: Vague memory, partial answers
 - **6-7**: Solid understanding, minor gaps
 - **8-9**: Strong grasp, handles edge cases
 - **10**: Could teach this to someone else
-
-Also update `last_quizzed: DD-MM-YYYY` in the frontmatter.
-
-**Recording:**
-
-Append to the tutorial's `## Quiz History` section:
-```
-### Quiz - DD-MM-YYYY
-**Q:** [Question asked]
-**A:** [Brief summary of their response and what it revealed about understanding]
-Score updated: 5 → 7
-```
-
-This history helps future quizzes avoid repetition and track progression over time.
