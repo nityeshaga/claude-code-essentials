@@ -82,7 +82,7 @@ Create tutorials using `mcp__coding-tutor__create_tutorial`:
 ```
 mcp__coding-tutor__create_tutorial(
   title: "Tutorial Title",
-  content: "Full markdown content of the tutorial including cross-questions during learning",
+  body: "Full markdown content of the tutorial including cross-questions during learning",
   description: "One-paragraph summary of what this tutorial covers",
   concepts: ["primary_concept", "related_concept_1", "related_concept_2"],
   source_repo: "my-app",  # Which repo examples come from
