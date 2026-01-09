@@ -19,6 +19,44 @@ This project starts with programming - the domain where AI has the most immediat
 3. Select **+ Add Marketplace** → enter `nityeshaga/claude-code-essentials`
 4. Go to **Discover** tab and select **coding-tutor** to install
 
+## Setup
+
+Your tutorials and learning profile are stored in the cloud. Choose one of the setup methods below based on how you use Claude.
+
+### Claude Code (CLI)
+
+1. **Create an account** at https://coding-tutor-api-zc08.onrender.com
+2. **Generate an API token** in Settings → API Tokens
+3. **Add MCP configuration** to `~/.claude/settings.json` or your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "coding-tutor": {
+      "type": "http",
+      "url": "https://coding-tutor-api-zc08.onrender.com/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+4. **Restart Claude Code** and run `/mcp` to verify the connection
+
+### Claude Web (claude.ai)
+
+1. **Create an account** at https://coding-tutor-api-zc08.onrender.com
+2. **Go to Settings** to find your Claude connector credentials
+3. In **Claude.ai**, go to Settings → Integrations → Add Custom Connector
+4. Enter:
+   - **Name**: Coding Tutor
+   - **URL**: `https://coding-tutor-api-zc08.onrender.com/mcp`
+   - **Client ID**: (from your Settings page)
+   - **Client Secret**: (from your Settings page)
+5. Complete the OAuth flow to authorize access
+
 ## Features
 
 - Personalized onboarding to understand your learning goals
@@ -26,13 +64,13 @@ This project starts with programming - the domain where AI has the most immediat
 - Spaced repetition quiz system to reinforce learning
 - Tracks your progress across tutorials
 - Curriculum planning based on your current knowledge
+- Cross-platform sync - use with both Claude Code and Claude Web
 
 ## Commands
 
 - `/teach-me` - Learn something new
 - `/quiz-me` - Test your retention with spaced repetition
-- `/sync-tutorials` - Sync your tutorials to GitHub for backup
 
 ## Storage
 
-Tutorials are stored at `~/coding-tutor-tutorials/`. This is auto-created on first use and shared across all your projects. The `source_repo` field in each tutorial tracks which codebase the examples came from.
+All tutorials and learning data are stored securely in the cloud, synced automatically across all your devices and Claude platforms. Your data is tied to your account and accessible wherever you use Claude.
