@@ -86,7 +86,6 @@ mcp__coding-tutor__create_tutorial(
   description: "One-paragraph summary of what this tutorial covers",
   concepts: ["primary_concept", "related_concept_1", "related_concept_2"],
   source_repo: "my-app",  # Which repo examples come from
-  source_file: "app/models/user.rb",  # Optional: specific file referenced
   prerequisite_ids: [1, 2, 3]  # Optional: IDs of prerequisite tutorials
 )
 ```
