@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruby -e \"require 'json'; data = JSON.parse(STDIN.read); file_path = data['tool_input']['file_path']; rubocop_path = File.join(ENV['CLAUDE_PROJECT_DIR'] || '.', 'bin', 'rubocop'); exit 0 unless File.executable?(rubocop_path); system(rubocop_path, '-a', file_path)\""
+          }
+        ]
+      }
     ]
   }
 }
