@@ -1,1 +1,0 @@
-Organize your work into commits so that it's easy for me to review. Then push to remote.

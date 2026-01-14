@@ -33,10 +33,9 @@ Personalized coding tutorials that use your actual codebase for examples with sp
 **Commands:**
 - `/teach-me` - Learn something new
 - `/quiz-me` - Test your retention with spaced repetition
-- `/sync-tutorials` - Sync your tutorials to GitHub for backup
 
 **Storage:**
-Tutorials are stored at `~/coding-tutor-tutorials/`. This is auto-created on first use and shared across all your projects. The `source_repo` field in each tutorial tracks which codebase the examples came from.
+All tutorials and learning data are stored securely in the cloud, synced automatically across all your devices and Claude platforms. Your data is tied to your account and accessible wherever you use Claude.
 
 ---
 
@@ -44,13 +43,11 @@ Tutorials are stored at `~/coding-tutor-tutorials/`. This is auto-created on fir
 
 Essential Claude Code commands, agents, hooks, and skills for everyday development workflows.
 
-**Commands (15):**
-`/cc`, `/cleanup`, `/commit-push`, `/create-developer-doc`, `/create-pitch`, `/depcheck`, `/fix`, `/issue`, `/pinpoint`, `/plan`, `/review`, `/study`, `/tailwind-upgrade`, `/teach`, `/work`
+**Commands (12):**
+`/cc`, `/cleanup`, `/compound`, `/create-developer-doc`, `/create-pitch`, `/depcheck`, `/gem-upgrade`, `/logically-commit`, `/pinpoint`, `/review`, `/study`, `/tidy-commits`
 
-**Agents (3):**
-- `code-polisher` - Rails refactoring expert
+**Agents (1):**
 - `dhh-reviewer` - DHH-style code reviewer
-- `tech-advisor` - Technical solution architect
 
 **Hooks:**
 - `block-main-push` - Prevents accidental git pushes to main branch

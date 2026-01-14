@@ -14,28 +14,23 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 | Command | Description |
 |---------|-------------|
 | `/cc` | Commit changes |
-| `/cleanup` | Cleanup workflow |
-| `/commit-push` | Commit and push changes |
+| `/cleanup` | Rails code review with architecture and quality analysis |
+| `/compound` | Reflect on session learnings and extract tacit knowledge |
 | `/create-developer-doc` | Generate developer documentation |
-| `/create-pitch` | Create pitch content |
-| `/depcheck` | Dependency checking |
-| `/fix` | Find and fix GitHub issue |
-| `/issue` | Issue management |
-| `/pinpoint` | Pinpoint specific code/issues |
-| `/plan` | Planning workflow |
-| `/review` | Code review |
-| `/study` | Study/learning mode |
-| `/tailwind-upgrade` | Tailwind CSS upgrade workflow |
-| `/teach` | Teaching/documentation mode |
-| `/work` | Work on GitHub issue |
+| `/create-pitch` | Create 37signals-style pitch for new features |
+| `/depcheck` | Analyze Dependabot PRs for safe merging |
+| `/gem-upgrade` | Analyze gem upgrade impact with release notes and commits |
+| `/logically-commit` | Commit after every logically complete unit of work |
+| `/pinpoint` | Investigate and pinpoint root cause before suggesting solutions |
+| `/review` | Objective branch review for code smells and unintended changes |
+| `/study` | Study branch changes to understand current work context |
+| `/tidy-commits` | Organize changes into reviewable commits |
 
 ## Agents
 
 | Agent | Description |
 |-------|-------------|
-| `code-polisher` | Rails refactoring expert that analyzes recent commits for code smells and automatically refactors |
 | `dhh-reviewer` | DHH-style code reviewer providing brutally honest Rails code review |
-| `tech-advisor` | Technical solution architect providing pragmatic recommendations |
 
 ## Hooks
 
@@ -48,6 +43,8 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 | Skill | Description |
 |-------|-------------|
 | `ai-tool-designer` | Designing tools for AI agents with agent-centric design principles |
+| `dhh-rails-expert` | Writing and reviewing Rails code following DHH's style |
+| `kamal-deploy` | Expert-level Kamal deployment guidance for containerized apps |
 | `mcp-builder` | MCP (Model Context Protocol) server development guide |
 | `prompt-engineer` | Prompt engineering for AI systems |
 | `skill-creator` | Guide for creating Claude skills |

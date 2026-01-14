@@ -1,0 +1,1 @@
+Organize the changes made into commits so that it's easy for me to review.
