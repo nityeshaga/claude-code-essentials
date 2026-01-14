@@ -27,12 +27,25 @@ Directories must be at plugin root level, NOT inside `.claude-plugin/`.
 
 ## Version Management
 
-**Before pushing to main, bump versions in BOTH:**
+Version bumping is not functionally required for updates (Claude Code fetches latest content regardless), but is recommended as a best practice for tracking releases.
 
-1. `.claude-plugin/marketplace.json` - `version` and `plugins[].version`
-2. `plugins/<plugin-name>/.claude-plugin/plugin.json` - `version`
+### When changing a plugin
 
-Use semantic versioning:
+Bump **2 places** and keep them in sync:
+
+1. `plugins/<plugin-name>/.claude-plugin/plugin.json` → `version`
+2. `.claude-plugin/marketplace.json` → matching `plugins[].version`
+
+### When making marketplace-level changes
+
+Optionally bump **1 additional place**:
+
+3. `.claude-plugin/marketplace.json` → root `version`
+
+Only bump the marketplace root version for significant marketplace changes (adding new plugins, restructuring, etc.), not for every plugin update.
+
+### Semantic versioning
+
 - **PATCH** (1.1.0 → 1.1.1): Bug fixes, small improvements
 - **MINOR** (1.1.x → 1.2.0): New features
 - **MAJOR** (1.x.x → 2.0.0): Breaking changes
