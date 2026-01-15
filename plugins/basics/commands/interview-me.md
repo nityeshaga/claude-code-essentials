@@ -12,7 +12,7 @@ First, start a background timer and store the process ID:
 sleep 300 & echo $! > /tmp/discovery-timer-pid && echo "Timer started"
 ```
 
-This starts a 5-minute timer. Adjust 300 (seconds) if the user requests a different duration.
+This starts a 5-minute timer. Adjust 300 (seconds) if the user requests a different duration. You MUST start this as a background task so the interview can proceed.
 
 ## After Every User Response
 
