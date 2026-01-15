@@ -18,6 +18,8 @@ This skill uses the `coding-tutor` MCP server for cloud storage. Available tools
 - `mcp__coding-tutor__create_tutorial` - Create a new tutorial
 - `mcp__coding-tutor__update_tutorial` - Update existing tutorial
 - `mcp__coding-tutor__delete_tutorial` - Delete a tutorial
+- `mcp__coding-tutor__publish_tutorial` - Make a tutorial publicly accessible via shareable URL
+- `mcp__coding-tutor__unpublish_tutorial` - Make a tutorial private (owner-only access)
 - `mcp__coding-tutor__create_quiz_session` - Record quiz results with questions asked
 - `mcp__coding-tutor__get_quiz_history` - Get quiz history for a tutorial
 - `mcp__coding-tutor__get_quiz_recommendations` - Get spaced repetition recommendations
