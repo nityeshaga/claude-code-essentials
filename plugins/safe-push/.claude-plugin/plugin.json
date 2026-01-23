@@ -1,7 +1,7 @@
 {
   "name": "safe-push",
-  "version": "0.1.0",
-  "description": "Prevents accidental pushes to main branch in Claude Code bypassPermissions mode",
+  "version": "0.1.1",
+  "description": "Prevents accidental pushes to main branch in Claude Code bypassPermissions mode. Designed for user scope installation.",
   "author": {
     "name": "Piyush Agarwal"
   },
