@@ -38,6 +38,22 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 |------|-------------|
 | `block-main-push` | Prevents accidental git pushes to the main branch |
 
+### About block-main-push
+
+This hook prevents Claude from accidentally pushing to `main` branch when running in bypassPermissions mode. It intercepts git push commands and blocks:
+- Explicit pushes to main
+- Implicit pushes when on main branch
+- Cross-repository pushes via `-C` flag
+
+**Related: [safe-push plugin](../safe-push/README.md)**
+
+The same hook is available as a standalone plugin called `safe-push`. Use:
+
+- **basics** (this plugin): For **project-level** installation in CI/CD environments (e.g., GitHub Actions)
+- **safe-push**: For **user-level** installation to protect local development across all repositories
+
+See the [safe-push README](../safe-push/README.md) for details on the vulnerability this prevents.
+
 ## Skills
 
 | Skill | Description |

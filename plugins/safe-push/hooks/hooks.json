@@ -1,0 +1,16 @@
+{
+  "description": "Blocks pushes to main/master branch to prevent accidental deployments",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruby ${CLAUDE_PLUGIN_ROOT}/scripts/block-main-push.rb"
+          }
+        ]
+      }
+    ]
+  }
+}

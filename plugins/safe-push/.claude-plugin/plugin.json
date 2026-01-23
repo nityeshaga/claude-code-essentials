@@ -1,0 +1,9 @@
+{
+  "name": "safe-push",
+  "version": "0.1.0",
+  "description": "Prevents accidental pushes to main branch in Claude Code bypassPermissions mode",
+  "author": {
+    "name": "Piyush Agarwal"
+  },
+  "keywords": ["security", "git", "hooks", "protection"]
+}

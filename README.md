@@ -60,6 +60,21 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 - `prompt-engineer` - Prompt engineering for AI systems
 - `skill-creator` - Guide for creating Claude skills
 
+---
+
+### safe-push
+
+Prevents accidental pushes to main branch in Claude Code bypassPermissions mode.
+
+**Important:** Install at the **user level** (`~/.claude/settings.json`) to protect all repositories.
+
+**The vulnerability:** If Repo A has `basics` installed at project level but Repo B has no plugin, Claude running in Repo B can push to Repo A's main branch via `git -C /path/to/RepoA push origin main`. Project-level hooks don't help - protection depends on where Claude runs, not the target repo.
+
+**Hooks:**
+- `block-main-push` - Blocks git pushes to main branch (PreToolUse on Bash)
+
+See [safe-push README](./plugins/safe-push/README.md) for installation instructions and technical details.
+
 ## Contributing
 
 Want to add a plugin to this marketplace? Open a PR!

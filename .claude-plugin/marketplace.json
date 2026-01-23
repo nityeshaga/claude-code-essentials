@@ -1,6 +1,6 @@
 {
   "name": "claude-code-essentials",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Essential Claude Code plugins for developers",
   "owner": {
     "name": "Nityesh Agarwal"
@@ -17,6 +17,12 @@
       "description": "Essential commands, agents, hooks, and skills for everyday development workflows",
       "version": "1.4.3",
       "source": "./plugins/basics"
+    },
+    {
+      "name": "safe-push",
+      "description": "Prevents accidental pushes to main branch in Claude Code bypassPermissions mode",
+      "version": "0.1.0",
+      "source": "./plugins/safe-push"
     }
   ]
 }
