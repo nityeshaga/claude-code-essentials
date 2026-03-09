@@ -1,1 +1,0 @@
-Commit after every logically complete unit of work

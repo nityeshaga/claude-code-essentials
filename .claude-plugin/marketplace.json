@@ -15,7 +15,7 @@
     {
       "name": "basics",
       "description": "Essential commands, agents, hooks, and skills for everyday development workflows",
-      "version": "1.6.0",
+      "version": "1.6.1",
       "source": "./plugins/basics"
     },
     {
