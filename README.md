@@ -54,7 +54,7 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 
 **Skills (6):**
 - `ai-tool-designer` - Designing tools for AI agents
-- `dhh-rails-expert` - DHH-style Rails development guidance
+- `beautiful-rails-like-dhh` - Write, review, and architect Rails apps the 37signals way — full backend + frontend (Hotwire) doctrine mined from Campfire and Fizzy, with the official Hotwire handbooks vendored in
 - `kamal-deploy` - Expert Kamal deployment for containerized apps
 - `mcp-builder` - MCP server development guide
 - `prompt-engineer` - Prompt engineering for AI systems
