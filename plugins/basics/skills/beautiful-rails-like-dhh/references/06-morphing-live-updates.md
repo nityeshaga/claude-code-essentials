@@ -15,7 +15,6 @@ Read this when a page must stay live across multiple browsers, when you're about
 9. [Constrain the optimistic guess to the server's sort axis](#9-constrain-the-optimistic-guess-to-the-servers-sort-axis)
 10. [Sharp edge: lazy frames must self-heal, not stale-morph](#10-sharp-edge-lazy-frames-must-self-heal-not-stale-morph)
 11. [Sharp edge: veto the morph on client-only attributes](#11-sharp-edge-veto-the-morph-on-client-only-attributes)
-12. [Red flags → fixes](#12-red-flags--fixes)
 
 Scope: this file owns the **push** half of Turbo — live refresh, morphing, and the full drag-and-drop stack built on them. The request-driven pull half (frames, streams, `dom_id` addressing) lives in `05-turbo-frames-streams.md`. Stimulus internals for client state (autosave, localStorage drafts, keyboard navigation) live in `07-stimulus-widgets.md`.
 
@@ -25,22 +24,7 @@ Scope: this file owns the **push** half of Turbo — live refresh, morphing, and
 
 **When:** Several screens must stay in sync as records change — a board, a list, a dashboard, anything multiplayer.
 
-**Not:** You will be tempted to hand-author a broadcast verb for every kind of change on every model — and then hand-maintain the fan-out:
-
-```ruby
-# DO NOT WRITE THIS — the broadcast matrix
-class Card < ApplicationRecord
-  after_create_commit  -> { broadcast_prepend_to board, :cards, target: [board, column, :cards] }
-  after_update_commit  -> { broadcast_replace_to board, :cards, target: self }
-  after_destroy_commit -> { broadcast_remove_to board, :cards }
-end
-
-class Column < ApplicationRecord
-  after_update_commit -> { broadcast_replace_to board, target: self }
-  # Each card shows its column's name, so a renamed column makes every card stale:
-  after_update_commit -> { cards.each { |c| c.broadcast_replace_to board, target: c } }
-end
-```
+**Not:** You will be tempted to hand-author a broadcast verb for every kind of change on every model — and then hand-maintain the fan-out.
 
 This is a matrix: every model × every verb (append/replace/remove) × a hand-written fan-out loop for every field one record borrows from another × a hand-written client-side restore layer for everything each destructive `replace` throws away (open menus, focus, in-flight transitions). Every new model on the page and every new borrowed field grows the matrix, silently, with no error when you forget a cell.
 
@@ -296,7 +280,7 @@ Guard, then three consequences that succeed or fail together. The drag path (`Dr
 
 **Not:** You will be tempted to inline the consequences in the controller (`@card.update!(closed_at: ..., column: nil)`) — don't. Every entry point then reimplements the move, and the day someone fixes a bug in the drag path, the click path and the cron still have it.
 
-**Why:** The model owns the consequence; controllers state intentions. Two-plus entry points, one implementation — the guard, the resume, and the event tracking cannot drift because they exist once. The deep doctrine is the model-owns-the-consequence file; what this file adds is the multiplayer corollary: drag, click, and cron all producing the *same* transition is what makes the broadcast/morph chain in §2 trustworthy from every direction.
+**Why:** The model owns the consequence; controllers state intentions. Two-plus entry points, one implementation — the guard, the resume, and the event tracking cannot drift because they exist once, and drag, click, and cron all producing the *same* transition is what makes the broadcast/morph chain in §2 trustworthy from every direction.
 
 ---
 
@@ -419,7 +403,7 @@ Golden → before the existing golden band; normal → after it, i.e. at the top
 
 **Not:** You will be tempted to compute an insertion index from the pointer's pixel position and POST it as `params[:position]` for the server to trust — don't. Client and server then each hold their own idea of order, and they drift the instant a sort rule changes on one side; the morph "corrects" the placement with a visible flicker on every drop.
 
-**Why:** The optimistic move buys instant feedback (a card snapping into place 150ms late feels broken); the constrained guess buys correctness for free. The DOM attribute IS the state: the server's sort knowledge reaches the client as one stamped bit, not a duplicated sorting algorithm.
+**Why:** The optimistic move buys instant feedback (a card snapping into place 150ms late feels broken); the constrained guess buys correctness for free. The DOM attribute IS the state: the server's sort knowledge reaches the client as one stamped bit, not a duplicated sorting algorithm. This is the full drag-and-drop composition — derived order + drop-as-REST + one model verb + URL-as-contract + the one-bit constrained guess + morph — each layer deferring to a convention the next layer already understands.
 
 ---
 
@@ -492,23 +476,4 @@ Every *other* attribute on the dialog still morphs — its contents stay fresh �
 
 ---
 
-## 12. Red flags → fixes
-
-| Red flag in the diff | Fix | Section |
-|---|---|---|
-| `broadcast_prepend_to` / `broadcast_replace_to` / `broadcast_remove_to` per lifecycle event | `broadcasts_refreshes`, one macro, all verbs | §1–2 |
-| A loop re-broadcasting child records when a parent changes | `touch: true` on the association (+ `touch_all` for the reverse direction) | §2 |
-| A channel class, event names, or hand-rolled WebSocket code for live updates | four declarations agreeing on a stream name; no real-time code | §2 |
-| `turbo_refreshes_with` missing from the layout | add `method: :morph, scroll: :preserve` once, in `<head>` | §2 |
-| Plain `turbo_stream.replace` replying to an edit or a drop | add `method: :morph` — reconcile, don't destroy | §4 |
-| A new `position` / `rank` / `sort_order` column; `acts_as_list` | derive order from one sort axis (`order(last_active_at: :desc, id: :desc)`); store position only for genuine user intent | §5 |
-| "Pinned" stored as an integer or boolean re-sorted by hand | derive from a satellite row's existence (`left_outer_joins` + `prepend_order("... IS NULL")`) | §5 |
-| `case params[:destination]` (or any branch on what a gesture means) in a controller | one resource per meaning in a `namespace :drops` block; the routing table owns the branch | §6 |
-| `@card.update!(closed_at: ...)` inline in a controller, duplicated across entry points | one transactional model verb (`close`, `postpone`, `triage_into`) all paths call | §7 |
-| Client JS building route paths, or POSTing `{ destination: "...", id: ... }` JSON | server-rendered `drop_url` with a `__id__` hole; client fills the hole and POSTs empty | §8 |
-| Client computing an insertion index from pixel position and posting it | one server-stamped bit (`data-drag-and-drop-top`) honoring the server's only sort axis | §9 |
-| Lazy `src` frame goes empty after a live refresh | frame helper wires `morphReload`: cancel the wholesale morph, reload the frame | §10 |
-| Menus/panels slam shut on every live refresh | `turbo:before-morph-attribute` veto on exactly the client-only attribute (`open`, `class`) | §11 |
-| Client code saving and restoring focus/menu/scroll around updates | delete it; morph + the two vetoes are the reconciliation layer | §3, §10–11 |
-
-The composition is the lesson: `turbo_stream_from` + `broadcasts_refreshes` + `turbo_refreshes_with method: :morph` + `touch: true` = multiplayer with zero real-time code. Derived order + drop-as-REST + one model verb + URL-as-contract + the one-bit constrained guess + morph = drag-and-drop where every layer defers to a convention the next layer already understands. Build live UIs by making conventions agree on a name, then count the edge cases each declaration absorbs for free.
+For reviewing against these patterns, the cross-file symptom index is `13-review-checklist.md` (Turbo & Live Updates section).

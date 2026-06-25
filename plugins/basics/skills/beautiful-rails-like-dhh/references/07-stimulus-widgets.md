@@ -22,7 +22,6 @@ Read this when you're about to write any client-side behavior — keyboard navig
 16. [localStorage drafts: derive, don't store, at the client](#16-localstorage-drafts-derive-dont-store-at-the-client)
 17. [Asides: progressive enhancement, the DOM as source of truth, speaking Rails off the wire](#17-asides-progressive-enhancement-the-dom-as-source-of-truth-speaking-rails-off-the-wire)
 18. [The drag controller's client-side contract (recap)](#18-the-drag-controllers-client-side-contract-recap)
-19. [Red flags → fixes](#19-red-flags--fixes)
 
 Scope: this file owns the Stimulus layer — how rich widgets are built and configured. Morph mechanics, `broadcasts_refreshes`, the four-declaration multiplayer, and the full drag-and-drop stack (derived order, drop-as-REST, the optimistic-insert handshake) live in `06-morphing-live-updates.md`. The server-vs-client worldview — why one renderer beats two — lives in `00-frontend-first-principles.md`.
 
@@ -30,13 +29,7 @@ Scope: this file owns the Stimulus layer — how rich widgets are built and conf
 
 ## 1. The doctrine: JS is mechanism, ERB is configuration, the server owns the domain
 
-Every pattern in this file is one division of labor, applied over and over:
-
-| Layer | Owns | Never owns |
-|---|---|---|
-| **Stimulus controller (JS)** | A generic mechanism: "navigate a list," "clone a template per selection," "submit on connect," "save after a pause" | Any domain noun. No "card," no "assignee," no route shape, no field name |
-| **ERB / helpers** | The configuration: `data-*-value` toggles, `data-action` pipelines, stamped URLs, `<template>` blueprints, capability flags | The mechanism — no behavior is re-implemented per view |
-| **Server (routes, models, params)** | All domain knowledge: what a hotkey *means*, what a field is *named*, what a drop *does*, who is *allowed* | — |
+Every pattern in this file is one division of labor, applied over and over: the Stimulus controller (JS) owns a generic mechanism and no domain noun; ERB/helpers own the configuration; the server owns all domain knowledge. (The full owns/never-owns worldview is `00-frontend-first-principles.md`.)
 
 The test for any Stimulus controller you're about to write: **could this controller ship in a gem, with zero knowledge of your app, and still work?** Fizzy's `navigable-list`, `drag-and-drop`, `combobox`, `auto-submit`, `local-save` controllers all pass. If yours doesn't — if it knows a route, a model name, a field name, or what a key "means" — domain knowledge has leaked into the client, and you're on the road to the second renderer that `00-frontend-first-principles.md` exists to talk you out of.
 
@@ -313,7 +306,7 @@ async #performCardAction(url, selection) {
 
 Three judgments: **remember the index before acting** (the only state that crosses the round-trip, read from the live list, not stored); **race the real `turbo:morph` signal against a 200ms timeout** so the common case is exact and the worst case is bounded; **re-derive from the fresh DOM** — same index (the card that slid into the slot), clamp to last if you were at the bottom, clear if the list emptied.
 
-**Not:** You will be tempted to re-select the first item after every action (yanks the user to the top while they work down a column), to leave the cursor alone (it now points at a deleted node; the keyboard is stranded), or to wait on the morph event with no bound (an action that triggers no morph hangs the keyboard forever). Don't, three times.
+**Not:** You will be tempted to re-select the first item after every action (yanks the user to the top while they work down a column), to leave the cursor alone (it now points at a deleted node; the keyboard is stranded), or to wait on the morph event with no bound (an action that triggers no morph hangs the keyboard forever). Don't.
 
 **Why:** This is `aria-selected`-as-cursor (§3) surviving a live refresh: the floor fell out, and the cursor steps to where the floor now is. Re-derive, don't restore. The bounded race is the liveness seatbelt — trust the happy path, bound the unhappy one.
 
@@ -649,7 +642,7 @@ The configuration, as always, is in the view: the key is **per-resource** (`loca
 
 One detail is load-bearing: after restoring, **re-fire the change event**. Autosave (§15) and validation listen for the editor's change event, not for silent property writes — set the value silently and the restored draft is invisible to everything downstream. Client state flows through declared signals, not hidden writes.
 
-**Not:** You will be tempted to clear the draft optimistically on submit (a failed save now eats the user's work), or never (a stale draft clobbers a saved record on next open), or to use one global key (two open cards overwrite each other's drafts). Don't, three times.
+**Not:** You will be tempted to clear the draft optimistically on submit (a failed save now eats the user's work), or never (a stale draft clobbers a saved record on next open), or to use one global key (two open cards overwrite each other's drafts). Don't.
 
 **Why:** This is the server-side durability discipline at the client: don't forget the fact until the consequence is confirmed durable (`event.detail.success`), keep one source of truth, and after any DOM upheaval re-derive the visible state from it. Derive, don't store — applied to the browser.
 
@@ -678,26 +671,4 @@ Generic mechanism, ERB configuration, server-owned meaning: the same three-line 
 
 ---
 
-## 19. Red flags → fixes
-
-| Red flag in code you're writing or reviewing | The fix |
-|---|---|
-| A Stimulus controller named after a domain noun doing generic work (`CardListController`, `AssigneePickerController`) | One generic controller (`navigable-list`, `combobox`); the domain enters as `data-*-value` config in ERB (§2) |
-| `@selected` index, `.highlighted` class, ARIA added "later" | The cursor is `aria-selected`, written once; CSS and screen reader derive from it (§3) |
-| Controllers importing each other, cached references to sibling controllers | `getControllerForElementAndIdentifier` walking the DOM (§4); outlets declared as selectors in ERB (§5) |
-| A hotkey handler calling `postpone(card)` or encoding a route shape | Key table reads a server-stamped `data-*-url` off the element and POSTs (§6) |
-| `if (list.id === "closed-cards") return` inside a controller | Capability subtracted in markup: `card_hotkeys_disabled: true` on the surface (§7) |
-| After an action, cursor re-set to first item — or left on a deleted node — or an unbounded `await` on a morph event | Remember the index, `Promise.race` the real signal vs a 200ms fallback, re-derive: clamp / last / clear (§8) |
-| Widget POSTs JSON; controller has `JSON.parse(request.body.read)` / `is_a?(Array)` checks | Widget clones a server-rendered `<template>` of `hidden_field_tag`s; `permit(ids: [])` reads it (§9) |
-| `name="assignee_ids[]"` built with `createElement` in JS | The field name is authored once, server-side, in the `<template>` — by the side that writes the permit list (§9) |
-| `form.submit()` anywhere | `form.requestSubmit()` — native validation + Turbo interception (§10) |
-| One controller calling another's method to sequence a gesture | `data-action="a#x b#y form#submit"` pipeline in the ERB (§11) |
-| Broadcast carries scroll/sound/UI flags; `addEventListener("turbo:before-stream-render")` in `connect()`; a document-level stream handler with no target guard | Dumb append on the wire; declarative `turbo:before-stream-render@document->…` action wraps `event.detail.render`, guarded on `event.detail.newStream`'s target (§12) |
-| A `fetch()` for something a form could do; cleanup code waiting for a one-shot form | Self-submitting form: `connect()` → `requestSubmit()` → `remove()` on successful `turbo:submit-end` (§13) |
-| `data[:controller] = "auto-submit"` (assignment) in a helper; full controller lists hand-written at call sites | Decorator helpers that merge: `"auto-submit #{data[:controller]}".strip`, `[data[:action], "..."].compact.join(" ")` (§14) |
-| A `dirty` boolean beside the work it describes | The pending timer IS the dirty bit; `disconnect()` flushes (§15) |
-| A timer, polling loop, or manual listener started in `connect()` with no `disconnect()` teardown | Pair acquire/release: `connect()`/`disconnect()` fire every time the element enters/leaves the document, and an unreleased resource outlives its element (§15) |
-| Draft cleared on submit (not on *confirmed* success); one global draft key; draft lost after a morph | Per-resource key, clear only when `turbo:submit-end` reports success, `turbo:morph-element` → re-restore (§16) |
-| JS measuring/computing what CSS can derive; a bespoke JS formatting vocabulary | One synced `data-*` attribute + CSS; port the Rails helper (`toSentence`) instead of inventing (§17) |
-
-The summary judgment, for when you're tempted by React anyway: everything in this file — keyboard-first navigation with screen-reader-correct selection, domain-aware hotkeys, nested focus management, multi-select comboboxes, scroll-aware live updates with sound and a "jump to newest" pill, autosave, crash-safe drafts, optimistic drag-and-drop — runs on a handful of generic Stimulus controllers configured from ERB, with the server owning every field name, URL, and capability. There is no client state store because the DOM is the state; there is no API contract because the wire carries HTML and form params; there is no second renderer to keep in agreement with the first. That's not a workaround for not having React. It's the deletion of the entire problem React exists to manage.
+For reviewing against these patterns, the cross-file symptom index is `13-review-checklist.md` (Stimulus & Frontend section). For why one renderer beats two when React tempts you anyway, see `00-frontend-first-principles.md`.
