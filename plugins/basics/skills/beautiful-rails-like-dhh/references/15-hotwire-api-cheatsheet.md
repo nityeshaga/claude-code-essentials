@@ -1,6 +1,6 @@
 # Hotwire API Cheat Sheet
 
-Read this when you need the exact API — attributes, events, actions, options. Doctrine lives in `05-turbo-frames-streams.md`, `06-morphing-live-updates.md`, and `07-stimulus-widgets.md`; this is the surface. Everything below is distilled verbatim from the official Turbo and Stimulus references (Hotwire docs) — that provenance applies to the whole file. For prose explanations, the vendored handbooks live in `hotwire-docs/turbo/` and `hotwire-docs/stimulus/`.
+Read this when you need the exact API — attributes, events, actions, options. Doctrine lives in `05-turbo-frames-streams.md`, `06-morphing-live-updates.md`, and `07-stimulus-widgets.md`; this is the surface. Everything below is distilled verbatim from the official Turbo and Stimulus references (Hotwire docs) — that provenance applies to the whole file. For prose explanations, fetch the official handbooks at <https://turbo.hotwired.dev/handbook> and <https://stimulus.hotwired.dev/handbook>.
 
 ## Contents
 
