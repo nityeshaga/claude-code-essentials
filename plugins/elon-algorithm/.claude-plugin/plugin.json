@@ -1,6 +1,6 @@
 {
   "name": "elon-algorithm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Run Elon's algorithm (question every requirement → delete → simplify) on any artifact to cut AI slop and make code, prompts, skills, or docs leaner and denser. Ships a reusable workflow + an accompanying skill.",
   "author": {
     "name": "Nityesh Agarwal"
