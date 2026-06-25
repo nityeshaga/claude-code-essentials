@@ -35,7 +35,17 @@ The output is a **plan, not a blind rewrite** — you review it and apply it as 
 
 ## Run it
 
-Invoke the **Workflow** tool with the bundled script:
+The four phases above are the *spirit* of the algorithm, not a tool. How you run them depends on the size of the artifact:
+
+### Small artifact (a single file, or a couple) — run it directly
+
+When the target is one file or a small handful, you **don't need the workflow**. The bird's-eye/cross-file pass exists for multi-file trees; with one or two files there's almost nothing to see across them. Just run the algorithm yourself: clone the target so the original is never touched, then launch sub-agents directly to follow the spirit — e.g. one reviewer per file proposing cuts/rewrites, one skeptic arguing each cut back (deletion gets the last word), then judge cut-by-default and hand back a cut-plan + ranked add-back menu. Same `clone → review → debate → judge` shape, no dynamic workflow.
+
+This is the lighter, faster default for most "trim this one file/prompt/skill" asks.
+
+### Large or multi-file artifact (a directory, a bundle, a mirror tree) — use the workflow
+
+When the target spans many files, invoke the bundled **Workflow**, which orchestrates the full fan-out deterministically:
 
 ```
 Workflow({
