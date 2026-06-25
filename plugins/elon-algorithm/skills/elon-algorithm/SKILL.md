@@ -39,7 +39,7 @@ The four phases above are the *spirit* of the algorithm, not a tool. How you run
 
 ### Small artifact (a single file, or a couple) — run it directly
 
-When the target is one file or a small handful, you **don't need the workflow**. The bird's-eye/cross-file pass exists for multi-file trees; with one or two files there's almost nothing to see across them. Just run the algorithm yourself: clone the target so the original is never touched, then launch sub-agents directly to follow the spirit — e.g. one reviewer per file proposing cuts/rewrites, one skeptic arguing each cut back (deletion gets the last word), then judge cut-by-default and hand back a cut-plan + ranked add-back menu. Same `clone → review → debate → judge` shape, no dynamic workflow.
+When the target is one file or a small handful, you **don't need the workflow** — but the *structural* altitude still applies. The cross-file pass is moot with one file; questioning whether each **section / block / requirement deserves to exist** is not, and that's where the deepest cuts live. So attack structure before copy: default to deleting or merging whole sections, then simplify the survivors line-by-line. **The failure mode is treating the existing structure as fixed and only trimming sentences inside it — a 1% pass, not an Elon pass.** Then run the same `clone → review → debate → judge` shape with sub-agents directly (structural cuts first, then line-level; deletion gets the last word), no dynamic workflow.
 
 This is the lighter, faster default for most "trim this one file/prompt/skill" asks.
 
