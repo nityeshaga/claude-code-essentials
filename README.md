@@ -14,28 +14,18 @@ Then install plugins from the **Discover** tab.
 
 ## Available Plugins
 
-### coding-tutor
+### elon-algorithm
 
-Personalized coding tutorials that use your actual codebase for examples with spaced repetition quizzes.
-
-**Features:**
-- Personalized onboarding to understand your learning goals
-- Tutorials that use YOUR code as examples
-- Spaced repetition quiz system to reinforce learning
-- Tracks your progress across tutorials
-- Curriculum planning based on your current knowledge
+Run Elon's algorithm (question every requirement → delete → simplify) on any artifact to cut AI slop and make code, prompts, skills, or docs leaner and denser. Ships a reusable workflow + an accompanying skill.
 
 **Usage:**
-- "Teach me about React hooks"
-- "Quiz me on something"
-- "What should I learn next?"
+- "Cut the slop from this skill"
+- "Make this prompt leaner"
+- "This file is over-engineered — run the Elon algorithm on it"
 
-**Commands:**
-- `/teach-me` - Learn something new
-- `/quiz-me` - Test your retention with spaced repetition
-
-**Storage:**
-All tutorials and learning data are stored securely in the cloud, synced automatically across all your devices and Claude platforms. Your data is tied to your account and accessible wherever you use Claude.
+**What's inside:**
+- `workflows/elon-algorithm.js` - clone → bird's-eye + per-file review → asymmetric debate → cut-by-default judge → cut-plan + ranked add-back menu
+- `skills/elon-algorithm` - when and how to reach for the workflow
 
 ---
 
@@ -43,8 +33,8 @@ All tutorials and learning data are stored securely in the cloud, synced automat
 
 Essential Claude Code commands, agents, hooks, and skills for everyday development workflows.
 
-**Commands (12):**
-`/cc`, `/cleanup`, `/compound`, `/create-developer-doc`, `/create-pitch`, `/depcheck`, `/gem-upgrade`, `/logically-commit`, `/pinpoint`, `/review`, `/study`, `/tidy-commits`
+**Commands (11):**
+`/cc`, `/cleanup`, `/compound`, `/create-developer-doc`, `/depcheck`, `/gem-upgrade`, `/help-me-write`, `/interview-me`, `/pinpoint`, `/review`, `/tidy-commits`
 
 **Agents (1):**
 - `dhh-reviewer` - DHH-style code reviewer
@@ -52,13 +42,11 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 **Hooks:**
 - `block-main-push` - Prevents accidental git pushes to main branch
 
-**Skills (6):**
+**Skills (4):**
 - `ai-tool-designer` - Designing tools for AI agents
 - `beautiful-rails-like-dhh` - Write, review, and architect Rails apps the 37signals way — full backend + frontend (Hotwire) doctrine mined from Campfire and Fizzy, with the official Hotwire handbooks vendored in
 - `kamal-deploy` - Expert Kamal deployment for containerized apps
-- `mcp-builder` - MCP server development guide
 - `prompt-engineer` - Prompt engineering for AI systems
-- `skill-creator` - Guide for creating Claude skills
 
 ---
 

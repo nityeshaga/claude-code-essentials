@@ -1,22 +1,22 @@
 {
   "name": "claude-code-essentials",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Essential Claude Code plugins for developers",
   "owner": {
     "name": "Nityesh Agarwal"
   },
   "plugins": [
     {
-      "name": "coding-tutor",
-      "description": "Personalized coding tutorials with spaced repetition",
-      "version": "2.1.1",
-      "source": "./plugins/coding-tutor"
-    },
-    {
       "name": "basics",
       "description": "Essential commands, agents, hooks, and skills for everyday development workflows",
-      "version": "1.6.1",
+      "version": "1.8.0",
       "source": "./plugins/basics"
+    },
+    {
+      "name": "elon-algorithm",
+      "description": "Run Elon's algorithm (question → delete → simplify) on any artifact to cut AI slop and make code, prompts, skills, or docs leaner. Ships a reusable workflow + skill.",
+      "version": "0.1.0",
+      "source": "./plugins/elon-algorithm"
     },
     {
       "name": "safe-push",

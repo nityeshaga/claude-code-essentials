@@ -9,7 +9,7 @@ claude-code-essentials/
 ├── .claude-plugin/
 │   └── marketplace.json    # Lists all plugins
 ├── plugins/
-│   └── coding-tutor/
+│   └── basics/
 │       ├── .claude-plugin/
 │       │   └── plugin.json
 │       ├── commands/

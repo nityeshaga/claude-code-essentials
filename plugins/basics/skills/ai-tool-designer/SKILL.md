@@ -10,8 +10,6 @@ license: Complete terms in LICENSE.txt
 
 This skill provides comprehensive guidance for designing tools that AI agents can use effectively. Whether building custom agent tools or any AI-accessible interfaces, these principles maximize agent success in accomplishing real-world tasks.
 
-Note: Use the more specific mcp-builder skill if you want to create an MCP server.
-
 The quality of a tool system is measured not by how comprehensively it implements features, but by how well it enables AI agents to accomplish realistic, complex tasks using only the tools provided.
 
 ---
