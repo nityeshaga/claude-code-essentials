@@ -388,12 +388,8 @@ Don't route reordering as `post :move_left`, and don't let "we stored position" 
 
 ---
 
-## 12. Worked example: the ban arc
+## 12. Worked example: the ban arc (the route + controller shape)
 
-"Ban a user" exercises verb-as-noun, the two-line controller, the ordered model transaction, and the guard stack at once.
+"Ban a user" is verb-as-noun end to end. Route: `resource :ban, only: %i[ create destroy ]`. Controller: the two-line `Users::BansController` from §2 — guard first, load second, `create` is `@user.ban; redirect_to @user`. The controller doesn't know what banning entails: the verb found its noun, the noun's lifecycle is the route, the action is pure translation.
 
-**The naive version:** a `post :ban` member route; an action doing `user.update!(status: "banned")`, looping `user.messages.each(&:destroy)` in-request, plus a `redirect_if_banned` check sprinkled around. Each piece fails — the flag describes the account not the machine (re-register in 30 seconds); the live session keeps posting; the untransacted in-request loop times out half-done.
-
-**The 37signals version.** Route: `resource :ban, only: %i[ create destroy ]`. Controller: the two-line `Users::BansController` from §2 — guard first, load second, `create` is `@user.ban; redirect_to @user`. The controller doesn't know what banning entails: the verb found its noun, the noun's lifecycle is the route, the action is pure translation.
-
-`@user.ban` is one model method whose **order is the correctness**: in one transaction, snapshot each session IP into a durable `Ban` row *before* deleting those sessions, kick live connections, defer slow content removal to a job, flip the status enum **last**. `unban` is the inverse CRUD. The full ordered transaction and the request-time enforcement gate (`Ban.banned?(request.remote_ip)`): `10-auth-security.md` §13. The thin controller is the receipt; the ordered transaction is what it's a receipt for.
+The full ordered model transaction (`@user.ban`) and the request-time enforcement gate (`Ban.banned?(request.remote_ip)`) live in `10-auth-security.md` §13. The thin controller is the receipt; that transaction is what it's a receipt for.

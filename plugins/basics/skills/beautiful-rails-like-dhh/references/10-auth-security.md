@@ -2,9 +2,7 @@
 
 Read when implementing or reviewing auth, authorization, login (esp. passwordless), tokens, bans, bots/API keys, or any Rails security review.
 
-**Governing idea:** authorization is strongest when it isn't a guard you remember to add but the very query you write. At every layer, make the unsafe version unwriteable or unobservable, so security needs no vigilance. The unsafe version is usually *shorter* — and shorter code is what gets copied into the next controller.
-
-If you want the fast path, jump to [§14 Red flags → fixes](#14-red-flags--fixes) — every pattern below collapses to one row there.
+**Governing idea:** authorization is strongest when it isn't a guard you remember to add but the query you write. Make the unsafe version unwriteable or unobservable, so security needs no vigilance. The unsafe version is usually *shorter* — and shorter code is what gets copied into the next controller.
 
 ---
 
@@ -17,7 +15,7 @@ A load-then-guard action splits security into two lines, and the second is forge
 head :forbidden unless @room.users.include?(Current.user) # the entire security model — easy to omit
 ```
 
-The next controller copies the load and drops the guard → IDOR. "Secure as long as nobody forgets a line across 40 controllers" is a hope, not a model. Everything below removes the forgettable line.
+The next controller copies the load and drops the guard → IDOR. Everything below removes the forgettable line.
 
 ---
 
@@ -42,9 +40,7 @@ def set_room
 end
 ```
 
-Because the association is a chainable Relation, the auth boundary rides the whole chain — `Current.user.reachable_messages.search(query)` is authorized by construction. You never "filter results by permission"; the permission is the left half of the chain. There is no global `Message.find` in the codebase to copy, so the forgot-the-check class can't occur.
-
-Don't reach for Pundit/CanCanCan — a policy object is still a second statement.
+Because the association is a chainable Relation, the auth boundary rides the whole chain — `Current.user.reachable_messages.search(query)` is authorized by construction. The permission is the left half of the chain, not a post-query filter. There's no global `Message.find` to copy, so the forgot-the-check class can't occur. Don't reach for Pundit/CanCanCan — a policy object is still a second statement.
 
 ---
 
@@ -68,7 +64,7 @@ def set_room
 end
 ```
 
-The bang is the only thing that varies, and varying it is a per-context decision.
+The bang is the only thing that varies, per-context.
 
 ---
 
@@ -91,13 +87,13 @@ module Authentication
 end
 ```
 
-Every controller requires a session and denies bots by inheritance. Open a door with a macro that reads as intent. The attack surface is then **enumerable by grep**:
+Every controller requires a session and denies bots by inheritance; open a door with a macro that reads as intent. The attack surface is enumerable by grep:
 
 ```bash
 grep -rn "allow_unauthenticated_access\|allow_bot_access" app/controllers/
 ```
 
-The direction of failure is the point: forgetting to *add* a guard fails open (leak); forgetting to *call* the opt-out macro fails closed (your new page demands login until you notice).
+Failure direction is the point: forgetting to *add* a guard fails open (leak); forgetting to *call* the opt-out fails closed (the new page demands login until you notice).
 
 ---
 
@@ -111,7 +107,7 @@ def require_authentication
 end
 ```
 
-Each strategy returns truthy on success, so short-circuit evaluation is the dispatcher; the last arm is the redirect-to-login fallback. No registry, no middleware stack, no `case` over an `auth_type`.
+Short-circuit evaluation is the dispatcher; the last arm is the redirect-to-login fallback. No registry, no middleware stack, no `case` over an `auth_type`.
 
 ---
 
@@ -123,7 +119,7 @@ Make forgery protection conditional on *how this request authenticated*:
 protect_from_forgery with: :exception, unless: -> { authenticated_by.bot_key? }
 ```
 
-CSRF attacks ambient cookie credentials. A request that authenticated by key carries no ambient credential, so there's no forgery surface — exempt only those, not the whole controller. A human in a browser on the same endpoint keeps full protection.
+CSRF attacks ambient cookie credentials. A key-authenticated request carries no ambient credential, so there's no forgery surface — exempt only those, not the whole controller. A human in a browser on the same endpoint keeps full protection.
 
 ---
 
@@ -146,14 +142,14 @@ def ensure_can_administer
 end
 ```
 
-One sentence, reused at every mutating call site. **Genuine exceptions live in a subclass, not an `if`** — e.g. DM rooms where everyone can administer:
+**Genuine exceptions live in a subclass, not an `if`** — e.g. DM rooms where everyone can administer:
 
 ```ruby
 # Rooms::DirectsController
 def ensure_can_administer = true
 ```
 
-The base controllers never learn direct rooms exist. Don't copy-paste a creator check per action (it drifts) or reach for a per-model policy gem.
+The base controllers never learn direct rooms exist. Don't copy a creator check per action (it drifts).
 
 ---
 
@@ -178,7 +174,7 @@ Two details to copy:
 - `unless: :safe_request?` — GET/HEAD pass; only mutating verbs are blocked. A banned machine can read, not act.
 - `head :too_many_requests` (429, not 403) — reads as ordinary rate-limiting, leaks nothing about a targeted ban.
 
-Don't sprinkle the `before_action` per controller, or bury it in Rack middleware (loses model/convention access for no gain).
+Don't sprinkle the `before_action` per controller or bury it in Rack middleware (loses model/convention access for no gain).
 
 ---
 
@@ -192,7 +188,7 @@ class Messages::ByBotsController < ApplicationController
 end
 ```
 
-The bot's reachable surface is enumerable by grep (every `allow_bot_access`), forgetting one fails closed, and because it's a `User` it flows through `Current.user` and authorization-by-association with zero special cases. Don't build a parallel `BotPermission` / scopes column / capability matrix.
+The bot's surface is grep-enumerable, forgetting a door fails closed, and because it's a `User` it flows through `Current.user` and authorization-by-association with zero special cases. Don't build a parallel `BotPermission` / capability matrix.
 
 ---
 
@@ -210,7 +206,7 @@ rescue IPAddr::InvalidAddressError
 end
 ```
 
-The instinct `rescue => false` ("couldn't tell, let it through") is the SSRF hole. Never write a guard whose error path is more permissive than its success path. (Same instinct: `Ban` validation rejects an unparseable IP rather than half-trusting it.)
+`rescue => false` ("couldn't tell, let it through") is the SSRF hole. Never write a guard whose error path is more permissive than its success path.
 
 ---
 
@@ -263,7 +259,7 @@ class MagicLink < ApplicationRecord
 end
 ```
 
-Double-redeem is gone by construction (the second lookup finds nothing). Expiry is read-time via the beginless/endless range scopes — a code is dead the moment the clock passes `expires_at`, with nothing written; `cleanup` only reclaims disk and correctness never depends on it. No `used` boolean, no status enum, no sweeper-as-correctness.
+Double-redeem is gone by construction (the second lookup finds nothing). Expiry is read-time via the beginless/endless range scopes; `cleanup` only reclaims disk and correctness never depends on it. No `used` boolean, no status enum, no sweeper-as-correctness.
 
 **12b. Pending-login state is a signed cookie, not a table.** Between "submitted email" and "typed the code," remember *which email this browser is signing in as* in a signed, httponly, self-expiring cookie:
 
@@ -304,7 +300,7 @@ def redirect_to_fake_session_magic_link(email_address, **options)
 end
 ```
 
-Same pending cookie, same redirect, same JSON branch — no mailer fires (nothing saved) but the attacker can't observe that, because the response *is* the same code path. Indistinguishability comes from shared code, never from two hand-matched branches (which drift). (Fizzy also raises outside development if a magic-link code ever leaks into the flash.)
+Same pending cookie, same redirect, same JSON branch — no mailer fires (nothing saved), but the attacker can't observe that because the response *is* the same code path. Indistinguishability comes from shared code, never from two hand-matched branches (which drift). (Fizzy also raises outside development if a magic-link code ever leaks into the flash — a structural tripwire against accidentally rendering the secret.)
 
 **12d. Login is CRUD.** No `LoginController#authenticate`, no `/verify`. Two resources, REST lifecycle:
 
@@ -386,9 +382,8 @@ Scan any diff for the left column; each is a hole with a named fix above.
 | Expiry as a status flipped by a scheduled job | Range scopes — expiry is read-time; cleanup is housekeeping | 12a |
 | A `pending_logins` (or similar in-flight-state) table | Signed httponly self-expiring cookie; `secure_compare` at redeem | 12b |
 | Different responses for known vs unknown emails — or two hand-matched branches | Fabricate the unsaved object, flow it through the SAME path | 12c |
+| A magic-link / one-time code passing through `flash` | Raise outside development if a code reaches the flash — never render the secret | 12c |
 | `LoginController#authenticate` / `/verify` custom actions | `resource :magic_link` under `resource :session`; login = `sessions.create!` | 12d |
 | Ban/suspend as a flag on the account row | A durable row about the network address, snapshotted BEFORE its source is deleted | 13 |
 | Multi-step state change without a transaction, or status flipped first | Ordered checklist in one transaction; evidence first, status last | 13 |
 | Slow fan-out inside the security-critical request | Defer to a job enqueued on commit | 13 |
-
-One sentence to carry out: at every layer the safe path must also be the *only ergonomic path* — load through the user, default closed, name the exceptions, destroy the spent credential, freeze the durable fact before deleting its source — so security survives a growing codebase and a tired developer.

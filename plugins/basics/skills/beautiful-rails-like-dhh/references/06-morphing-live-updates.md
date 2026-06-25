@@ -8,7 +8,7 @@ This file owns the **push** half of Turbo — live refresh, morphing, and the dr
 
 ## 1. Refresh, don't replace — kill the broadcast matrix
 
-Don't hand-author a broadcast verb per model × per lifecycle event × a fan-out loop for every borrowed field × a client-side restore layer for what each destructive swap throws away. That matrix grows silently with every new model and field, with no error when you forget a cell.
+Don't hand-author a broadcast verb per model × lifecycle event, with a fan-out loop per borrowed field and a client restore layer for what each swap destroys. That matrix grows silently with every new model and field, with no error when you forget a cell.
 
 Instead, stop telling the client *what* changed — tell it *that* something changed and let it diff. In Turbo 8 the push payload is the word `refresh`. A subscribed client re-requests the page and **morphs** the response: walks old and new DOM side by side, edits only the nodes that differ. One extra GET per change deletes the whole subsystem — the server already has the templates, so "render again and compare" *is* the diff engine.
 
@@ -51,7 +51,7 @@ The load-bearing distinction behind everything here. `replace` and `morph` have 
 | Focus / cursor mid-edit | lost | survives |
 | Optimistic client mutation | undone, then redone | reconciled — a no-op when the guess was right |
 
-A node identical in old and new trees is never touched. That's why a live refresh and an open menu coexist. Don't reach for client bookkeeping to remember-and-restore what updates destroy — morph already *is* the reconciliation layer. The two sharp edges (§10, §11) are exactly where client-only state hides in places the server's render can't see.
+A node identical in old and new trees is never touched. That's why a live refresh and an open menu coexist. Don't reach for client bookkeeping to remember-and-restore what updates destroy — morph already *is* the reconciliation layer. The two sharp edges (§10, §11) are exactly where client-only state hides where the server's render can't see it.
 
 ## 4. Morph the reply to your own action
 
@@ -62,7 +62,7 @@ When responding to a user's own mutation (form submit, drag-drop) where the clie
 <%= turbo_stream.replace dom_id(@card, :card_container), partial: "cards/container", method: :morph, locals: { card: @card.reload } %>
 ```
 
-While the round-trip was in flight the DOM held focus, a running transition, an optimistically-moved card. The morph edits only what actually changed and leaves the rest — the optimistic mutation is *reconciled*, not undone-and-redone. A plain `turbo_stream.replace` works in a demo and flickers in production: it kills focus, transition, and optimistic placement, then redraws them.
+While the round-trip was in flight the DOM held focus, a running transition, an optimistically-moved card. The morph edits only what actually changed and leaves the rest — the optimistic mutation is *reconciled*, not undone-and-redone. A plain `turbo_stream.replace` works in a demo and flickers in production.
 
 This is **one engine, two entry points**: `broadcasts_refreshes` + `turbo_refreshes_with method: :morph` morphs the *whole page* on a push for everyone; `turbo_stream.replace … method: :morph` morphs *one node* on the HTTP reply to your own request. Same partials serve both.
 
@@ -178,7 +178,7 @@ For the morph to be a no-op, the client's guess about *where* the card lands mus
 data[:drag_and_drop_top] = true if card.golden? && !card.closed? && !card.postponed?
 ```
 
-The client reads exactly that bit: golden → before the golden band, normal → after it (top of the normal cards). That's the same partition `with_golden_first` + `latest` produce, so the optimistic placement *cannot disagree with server truth*. When the morph reply arrives the card is already in place in both trees: a no-op, placement/focus/animation survive. Don't compute an insertion index from pixel position and POST it as `params[:position]` — client and server then hold separate ideas of order and drift the instant a sort rule changes, with a visible flicker every drop. The DOM attribute IS the state.
+The client reads exactly that bit: golden → before the golden band, normal → after it. That's the same partition `with_golden_first` + `latest` produce, so the optimistic placement *cannot disagree with server truth*; when the morph reply arrives the card is already in place in both trees — a no-op, placement/focus/animation survive. Don't compute an insertion index from pixel position and POST it as `params[:position]`: client and server then hold separate ideas of order and drift the instant a sort rule changes, with a visible flicker every drop. The DOM attribute IS the state.
 
 ## 10. Sharp edge: lazy frames must self-heal, not stale-morph
 
@@ -244,5 +244,3 @@ Every *other* attribute still morphs — contents stay fresh — but the one the
 | Lazy `src` frame goes empty after a live refresh | frame helper wires `morphReload`: cancel the wholesale morph, reload | §10 |
 | Menus/panels slam shut on every live refresh | `turbo:before-morph-attribute` veto on the client-only attribute | §11 |
 | Client code saving/restoring focus/menu/scroll around updates | delete it; morph + the two vetoes are the reconciliation layer | §3, §10–11 |
-
-The composition is the lesson: `turbo_stream_from` + `broadcasts_refreshes` + `turbo_refreshes_with method: :morph` + `touch: true` = multiplayer with zero real-time code. Derived order + drop-as-REST + one model verb + URL-as-contract + the one-bit constrained guess + morph = drag-and-drop where every layer defers to a convention the next layer already understands.

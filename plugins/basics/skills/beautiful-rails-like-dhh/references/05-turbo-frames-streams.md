@@ -1,14 +1,14 @@
 # Turbo: Drive, Frames, Streams — the Request-Driven Half of Hotwire
 
-Read this when you're about to make any page update without a full reload — a live feed, an in-place edit, a lazy-loaded region, a real-time broadcast — and you feel the pull toward fetch handlers, JSON payloads, or a client-side renderer.
+Read before any page update without a full reload (live feed, in-place edit, lazy region, real-time broadcast) when you feel the pull toward fetch handlers, JSON payloads, or a client-side renderer.
 
-Scope: this file owns the *pull* mechanics — Drive, Frames, and Streams over both transports — plus the broadcast discipline around them. Turbo 8 morphing and `broadcasts_refreshes` → `06-morphing-live-updates.md`. Stimulus authoring → `07-stimulus-widgets.md`. The worldview argument for server rendering → `00-frontend-first-principles.md`. The exhaustive stream-action / attribute / event API → `15-hotwire-api-cheatsheet.md`.
+Scope: the *pull* mechanics — Drive, Frames, Streams over both transports — plus broadcast discipline. Morphing / `broadcasts_refreshes` → `06`. Stimulus → `07`. The server-rendering worldview → `00`. The exhaustive stream-action/attribute/event API → `15-hotwire-api-cheatsheet.md`.
 
 ---
 
 ## The three-mechanism ladder
 
-Turbo is a server-driven UI model: the server keeps rendering HTML, the browser swaps pieces of the page, you write zero fetch-and-render glue. Three mechanisms, escalating in precision. Start at the bottom and climb only when the lower rung can't express the update.
+Turbo is a server-driven UI model: the server keeps rendering HTML, the browser swaps pieces, you write zero fetch-and-render glue. Three mechanisms, escalating in precision. Start at the bottom; climb only when the lower rung can't express the update.
 
 | Mechanism | Granularity | You write | When |
 |---|---|---|---|
@@ -16,19 +16,19 @@ Turbo is a server-driven UI model: the server keeps rendering HTML, the browser 
 | **Turbo Frame** | one region | a `turbo_frame_tag` with an id (+ optional `src:`) | one part of the page loads, swaps, or persists independently |
 | **Turbo Stream** | one DOM node, one verb | a one-line `.turbo_stream.erb` and/or a `broadcast_*_to` call | a surgical change — append a row, replace a node — possibly pushed to *other* people's screens |
 
-Decision rule: **navigation is Drive (free), a self-contained region is a Frame, a surgical multi-screen mutation is a Stream.** The temptation is to skip the ladder and reach for a Stimulus controller doing `fetch()`. Every rung below replaces JavaScript you'd otherwise own.
+Decision rule: **navigation is Drive (free), a self-contained region is a Frame, a surgical multi-screen mutation is a Stream.** The temptation is a Stimulus controller doing `fetch()`. Every rung below replaces JavaScript you'd otherwise own.
 
 ---
 
 ## Turbo Drive: the floor you get for free
 
-Any full-page navigation. Write a boring `link_to` and a boring resourceful `GET`. Drive intercepts the click, turns it into a background fetch, swaps the new `<body>` in — SPA-feel, zero code. This is why opening a room in Campfire is *just* a `GET` to `rooms#show`: there's no "switch room" code, because Drive makes normal navigation feel instant. It absorbs history/back-button, scroll restoration, asset-reload detection, and in-flight cancellation — all yours the moment you do nothing.
+Any full-page navigation: a boring `link_to`, a boring resourceful `GET`. Drive intercepts the click, fetches in the background, swaps the new `<body>` — SPA-feel, zero code. Opening a room in Campfire is *just* a `GET` to `rooms#show`; there's no "switch room" code. Drive absorbs history/back-button, scroll restoration, asset-reload detection, and in-flight cancellation the moment you do nothing.
 
-"Do nothing" has exactly two taxes, both silent failures if unpaid.
+"Do nothing" has two taxes, both silent failures if unpaid.
 
 ### The form-response contract: redirect on success, status on failure
 
-Any stateful form submit (`create`/`update`/`destroy`) with a failure branch: success ends in a redirect (Drive expects a 303 and follows it — pass `status: :see_other` on `destroy`/`update`). Failure re-renders **with an error status**:
+Any stateful form submit (`create`/`update`/`destroy`) with a failure branch: success ends in a redirect (Drive expects a 303 — pass `status: :see_other` on `destroy`/`update`). Failure re-renders **with an error status**:
 
 ```ruby
 def create
@@ -41,7 +41,7 @@ def create
 end
 ```
 
-The trap is the classic pre-Turbo `render :new` with its implicit 200. Drive refuses to render a 200 from a POST (browsers own "resubmit this form?"), so it stays on the current URL and your validation errors silently never paint. Drive renders submit responses only at 4xx/5xx — `422` for validation errors, 5xx for a broken server. The first time you write an if-save-else branch, the `else` must carry the status or the failure path is a no-op no success-path test will catch.
+The trap: the classic `render :new` with its implicit 200. Drive refuses to render a 200 from a POST, so it stays on the current URL and your validation errors silently never paint. Drive renders submit responses only at 4xx/5xx — `422` for validation errors. The `else` must carry the status or the failure path is a no-op no success-path test will catch.
 
 ### The Drive cache: temporary elements and idempotent transforms
 
@@ -55,7 +55,7 @@ Drive snapshots every page before navigating away (`cloneNode` — event listene
 2. Make client-side DOM transformations idempotent — restored pages re-run your JS against already-transformed HTML. Stamp a `data` attribute on processed nodes and skip them on the second pass.
 3. For teardown neither covers, listen for `turbo:before-cache`. Per-page opt-out: `<meta name="turbo-cache-control" content="no-preview">` (or `no-cache`); detect a preview via `data-turbo-preview` on `<html>`.
 
-The trap is debugging a reappearing flash as a server bug — the Back button serves Drive's cache, not your controller.
+The trap: debugging a reappearing flash as a server bug — Back serves Drive's cache, not your controller.
 
 ---
 
@@ -76,11 +76,11 @@ def sidebar_turbo_frame_tag(src: nil, &)
 end
 ```
 
-One frame, fetched once, persisted across every room switch. `target: "_top"` makes links inside it drive full navigations instead of swapping in-frame. The DOM node itself is carried over — scroll position, open sections, and all — so there's nothing to serialize or restore in JavaScript.
+One frame, fetched once, persisted across every room switch. `target: "_top"` makes links inside it drive full navigations instead of swapping in-frame. The DOM node itself carries over — scroll position, open sections, all — so there's nothing to serialize or restore in JavaScript.
 
 ### Frames as page-assembly strategy
 
-When a page composes several independently-heavy regions (a board with N columns, a dashboard with N widgets), don't render the heavy content in the initial response at all. Ship one *empty* frame per region, each naming its own content endpoint:
+When a page composes several independently-heavy regions (a board with N columns, a dashboard with N widgets), don't render the heavy content in the initial response. Ship one *empty* frame per region, each naming its own content endpoint:
 
 ```erb
 <%# Each column on a Fizzy board is an empty frame that fills itself %>
@@ -95,11 +95,11 @@ At the other end of that `src:` is an ordinary resourceful `GET` (`#show`) that 
 
 A wall of these — one per column, one per deferrable widget — is the default page-assembly strategy, not a one-off. The frame *is* the client; the URL carries the contract. No "loading orchestration layer" gets built.
 
-One caveat: frame navigation does not touch the browser URL or history. For a frame where the user's position is shareable state — a paginated list, a tab set — back, refresh, and share are silently broken unless you render the frame (or its links/forms) with `data-turbo-action="advance"` to promote frame navigations to full visits. Once promoted, rebuilding that URL-derived state (page 2, the active tab) on a hard refresh becomes *your* controller's job.
+One caveat: frame navigation does not touch the browser URL or history. For a frame where the user's position is shareable state — a paginated list, a tab set — back, refresh, and share are silently broken unless you render it (or its links/forms) with `data-turbo-action="advance"` to promote frame navigations to full visits. Once promoted, rebuilding that URL-derived state (page 2, the active tab) on a hard refresh becomes *your* controller's job.
 
 ### Session expiry inside a frame: break out, don't error
 
-`src:` frames live behind authentication, which — given the page-assembly strategy above — means every frame you ship. The failure semantics: if a frame request returns a response without a matching `<turbo-frame>`, Turbo writes a "Content missing" message into the frame and throws. The canonical trigger is an expired session — the frame's GET redirects to the login page, which contains no such frame. Declare the login page as requiring a full-page load:
+`src:` frames live behind authentication, which — given the page-assembly strategy above — means every frame you ship. If a frame request returns a response without a matching `<turbo-frame>`, Turbo writes "Content missing" into the frame and throws. The canonical trigger: an expired session — the frame's GET redirects to login, which contains no such frame. Declare the login page as requiring a full-page load:
 
 ```erb
 <%# app/views/sessions/new.html.erb — turbo-rails helper; emits
@@ -107,7 +107,7 @@ One caveat: frame navigation does not touch the browser URL or history. For a fr
 <% turbo_page_requires_reload %>
 ```
 
-Now any response landing there breaks out of the frame as a real navigation. For handling a missing frame some other way, intercept `turbo:frame-missing`. The trap is diagnosing "Content missing" as a frame-id mismatch and wrapping the login page in matching frames — it's a navigation, not a region, and one meta tag declares it so for every frame at once.
+Now any response landing there breaks out of the frame as a real navigation. To handle a missing frame some other way, intercept `turbo:frame-missing`. The trap: diagnosing "Content missing" as a frame-id mismatch and wrapping the login page in matching frames — it's a navigation, and one meta tag declares it so for every frame at once.
 
 ### Eager-on-intent: prefetch by flipping one attribute
 
@@ -120,7 +120,7 @@ loadLazyFrames() {
 }
 ```
 
-What makes this safe to repeat is the Rails half: the endpoint computes a strong ETag from exactly the records it renders, so the hover request and the real click both hit the same URL and the second comes back `304 Not Modified`:
+What makes this safe to repeat is the Rails half: the endpoint computes a strong ETag from exactly the records it renders, so the hover request and the real click hit the same URL and the second comes back `304 Not Modified`:
 
 ```ruby
 def show
@@ -138,7 +138,7 @@ When a link targets a frame (`data: { turbo_frame: ... }`) and the response cont
 
 ## Turbo Streams: HTML + action + target, over two transports
 
-A stream is a fragment of HTML wrapped in an *action* aimed at a *target DOM id*: take this HTML and append it to the element with this id. The full verb set and semantics live in `15-hotwire-api-cheatsheet.md`; this file reasons about three — `append`, `replace`, `remove` — plus one distinction: `update` swaps only the target's *children* and keeps handlers on the target element alive, while `replace` swaps the element itself and forces any Stimulus controller on it to reconnect. When the target carries behavior, reach for `update`.
+A stream is a fragment of HTML wrapped in an *action* aimed at a *target DOM id*: take this HTML and append it to the element with this id. The full verb set lives in `15-hotwire-api-cheatsheet.md`; this file reasons about three — `append`, `replace`, `remove` — plus one distinction: `update` swaps only the target's *children* and keeps handlers on the target alive, while `replace` swaps the element itself and forces any Stimulus controller on it to reconnect. When the target carries behavior, reach for `update`.
 
 The load-bearing fact — the one that deletes whole subsystems — is that the identical stream travels over **two transports**:
 
@@ -203,7 +203,7 @@ And the subscription — one line in the room's show view, which also renders th
 
 That `turbo_stream_from` is the **entire** real-time wiring — no channel class, no event names, no payload schema, no socket handler. The view subscribes to `[@room, :messages]`; the model broadcasts to `[room, :messages]`; both resolve through the same signing/`dom_id` machinery, so they cannot spell the channel differently. The HTTP target `dom_id(@message.room, :messages)` and the broadcast target `[room, :messages]` resolve to the byte-identical string for the same reason. And `broadcast_append_to` defaults to rendering `messages/_message` — the same partial the page load used. **One renderer.**
 
-The trap is rendering the message three ways — the partial for the page, a `render_to_string` (or a JSON blob) for the socket, an inline string for the HTTP reply — with hand-typed id strings like `"room_#{id}_messages"` in one place and `"msg-#{id}"` in another. The day you add a badge to the partial, the page shows it and the broadcast forgets it, and nothing errors — the live path silently drifts. Never type a DOM id as a string; always ask `dom_id(model)` or pass the `[model, :suffix]` array form on both sides of the wire.
+The trap: rendering the message three ways — the partial for the page, a `render_to_string` for the socket, an inline string for the HTTP reply — with hand-typed ids like `"room_#{id}_messages"` in one place and `"msg-#{id}"` in another. Add a badge to the partial and the page shows it while the broadcast forgets it — nothing errors, the live path silently drifts. Never type a DOM id as a string; always `dom_id(model)` or the `[model, :suffix]` array form on both sides of the wire.
 
 ### HTML over the wire: the trade
 
@@ -211,11 +211,14 @@ The wire carries HTML, not data. Rendered HTML is more bytes than a tiny JSON bl
 
 ### Broadcasting is an explicit method, not a callback
 
-Keep broadcasting a plain method called explicitly at each call site (the controller's `create`, the webhook reply path) — no `included do`, no callback:
+Keep broadcasting a plain method called explicitly at each call site (the controller's `create`, the webhook reply path) — no `included do`, no callback. The general callback-vs-explicit-method rule ("whose fact is this?", the `_commit`/ghost-row discipline, the `skip_x`-flag smell) is owned by `02-models.md` §3. Two broadcast-specific consequences:
+
+1. Seeds, imports, and backfills create messages too — none should push to browsers. A callback would force a `skip_broadcast` flag onto every one of those paths; an explicit method needs nothing.
+2. Create, update, and destroy need three *different* verbs (`append`, `replace`, `remove`). A single `after_create_commit :broadcast` can express only one.
 
 ```ruby
-# Called from MessagesController#create and from the bot-webhook reply path —
-# and from NOWHERE else. A seed or an import never fires it.
+# Called from MessagesController#create and the bot-webhook reply path —
+# and NOWHERE else. A seed or import never fires it.
 module Message::Broadcasts
   def broadcast_create
     broadcast_append_to room, :messages, target: [ room, :messages ]
@@ -223,12 +226,7 @@ module Message::Broadcasts
 end
 ```
 
-The discriminating question: **whose fact is this?** A live browser broadcast is a property of *how* a message came into being (an interactive send), not of the message *existing*. Two consequences:
-
-1. Seeds, imports, backfills create messages too — none should push to browsers. A callback would force a `skip_broadcast` flag onto every one of those paths; an explicit method needs nothing.
-2. Create, update, and destroy need three *different* verbs (`append`, `replace`, `remove`). A single `after_create_commit :broadcast` can express only one.
-
-Contrast the line one row below in the same model — which *is* a callback, because it's true of every message that exists:
+Contrast the line one row below in the same model, which *is* a callback because it's true of every message that exists:
 
 ```ruby
 class Message < ApplicationRecord
@@ -236,7 +234,7 @@ class Message < ApplicationRecord
 end
 ```
 
-Marking unread is a fact of the record; broadcasting is a fact of the call path. The general callback-vs-explicit-method rule ("whose fact is this?", the `_commit`/ghost-row discipline, the `skip_x`-flag smell) is owned by `02-models.md` §3; what's broadcast-specific is the two consequences above.
+Marking unread is a fact of the record; broadcasting is a fact of the call path.
 
 ### The optimistic-id handshake: the de-dupe is deleted, not written
 
@@ -265,7 +263,7 @@ end
 
 4. Now `dom_id(message)` yields `message_<the-uuid-the-client-already-chose>`, not a server-minted `message_472`. When `broadcast_append_to` ships the authoritative HTML, Turbo sees a node whose id already exists and its **append-with-existing-id semantics replace in place** instead of stacking a duplicate.
 
-One overridden method bridges three layers — ActiveModel identity → `dom_id` → Turbo's id matching — and the reconciliation pass evaporates. The trap is writing that reconciliation by hand: a temp id, a find-and-swap, a race guard for when the broadcast beats the POST response, per-user "broadcast to everyone except the sender" channels — a documented source of duplicate-and-flicker bugs, every line of it existing only because the server invented a second identity after the insert.
+One overridden method bridges three layers — ActiveModel identity → `dom_id` → Turbo's id matching — and the reconciliation pass evaporates. The trap: writing that reconciliation by hand — a temp id, a find-and-swap, a race guard for when the broadcast beats the POST, per-user "broadcast to everyone except the sender" channels — a documented source of duplicate-and-flicker bugs, every line existing only because the server invented a second identity after the insert.
 
 ### Edit and delete: same address, different verb
 
@@ -283,11 +281,11 @@ def update
 end
 ```
 
-Read what is *not* there: no `if creator == current_user` branch. One action serves two audiences with zero conditionals. Spectators get the broadcast `replace` of the presentation node. The actor gets a plain redirect — and because their submit originated inside the edit frame, the response naturally swaps that frame back to presentation. Each audience's path is determined by *where their request originated*, not a runtime check. Destroy is symmetric: `broadcast_remove_to room, :messages`. (Fizzy reaches the same shape with `method: :morph` on the replace — that variant → `06-morphing-live-updates.md`.)
+Read what is *not* there: no `if creator == current_user` branch. One action serves two audiences with zero conditionals. Spectators get the broadcast `replace` of the presentation node. The actor gets a plain redirect — and because their submit originated inside the edit frame, the response naturally swaps that frame back to presentation. Each audience's path is determined by *where their request originated*, not a runtime check. Destroy is symmetric: `broadcast_remove_to room, :messages`. (Fizzy reaches the same shape with `method: :morph` on the replace → `06-morphing-live-updates.md`.)
 
 ### Intent as data on the wire
 
-When the client must behave differently for one kind of update — e.g. an edit must not yank scroll to the bottom the way a new message does — look at the update broadcast above: `attributes: { maintain_scroll: true }`. The server stamps *intent as data* — a plain attribute on the stream element — and client-side glue reads it. The model and controller never learn a UI exists; the transport stays generic (still just HTML at a target). The trap is forking a second, scroll-aware render path for edits — that's the two-renderer drift bug in a behavior costume. One renderer; nuance rides along as data, so you can rewrite client behavior without touching the model. (The Stimulus that honors the attribute → `07-stimulus-widgets.md`.)
+When the client must behave differently for one kind of update — e.g. an edit must not yank scroll to the bottom the way a new message does — look at the update broadcast above: `attributes: { maintain_scroll: true }`. The server stamps *intent as data* — a plain attribute on the stream element — and client-side glue reads it. The model and controller never learn a UI exists; the transport stays generic (still just HTML at a target). The trap: forking a second, scroll-aware render path for edits — that's the two-renderer drift bug in a behavior costume. One renderer; nuance rides along as data, so you can rewrite client behavior without touching the model. (The Stimulus that honors the attribute → `07-stimulus-widgets.md`.)
 
 ### Wake-from-sleep catch-up is a diff, not a reload
 
@@ -304,7 +302,7 @@ When a client reconnects hours behind — laptop wake, tab restore, flaky networ
 <% end %>
 ```
 
-The controller computes the diff — new messages since the timestamp, updated since the timestamp — with one guard: the updated set is scoped `.without(@new_messages)` so a brand-new message isn't counted as both. New rows are *appended* by the container's `dom_id`; edited rows are *replaced* by each row's `dom_id`. This is the fifth delivery path (first load, optimistic draw, HTTP reply, live broadcast, catch-up) routing through the one partial and one address — a path that *cannot* diverge from the other four has no "works only after refresh" bug. The trap is `window.onfocus = () => location.reload()`, which throws away scroll, in-progress composition, and every byte of state to fix "a few rows changed." (Turbo 8 reaches the same end via `broadcasts_refreshes` + morph — `06-morphing-live-updates.md`.)
+The controller computes the diff — new messages since the timestamp, updated since the timestamp — with one guard: the updated set is scoped `.without(@new_messages)` so a brand-new message isn't counted as both. New rows are *appended* by the container's `dom_id`; edited rows are *replaced* by each row's `dom_id`. This is the fifth delivery path (first load, optimistic draw, HTTP reply, live broadcast, catch-up) routing through the one partial and one address — a path that *cannot* diverge from the other four has no "works only after refresh" bug. The trap: `window.onfocus = () => location.reload()`, which throws away scroll, in-progress composition, and every byte of state to fix "a few rows changed." (Turbo 8 reaches the same end via `broadcasts_refreshes` + morph → `06-morphing-live-updates.md`.)
 
 ---
 
@@ -386,4 +384,4 @@ The pieces interlock into the full real-time arc:
 - and the `to_key` override extends that single identity to the client's optimistic placeholder, so Turbo's replace-on-existing-id deletes the de-dupe —
 - and because the address never changes, edit and delete are just different verbs (`replace`, `remove`) at the same address, catch-up is those verbs replayed in bulk, and client nuance rides along as `attributes:` data.
 
-Five delivery moments — first load, optimistic draw, HTTP reply, live broadcast, wake-from-sleep catch-up — one partial, one address, zero glue. When the update is "this whole page is stale, re-render and reconcile," climb to Turbo 8 morphing: `06-morphing-live-updates.md`.
+Five delivery moments — first load, optimistic draw, HTTP reply, live broadcast, catch-up — one partial, one address, zero glue. When the update is "this whole page is stale, re-render and reconcile," climb to Turbo 8 morphing: `06-morphing-live-updates.md`.

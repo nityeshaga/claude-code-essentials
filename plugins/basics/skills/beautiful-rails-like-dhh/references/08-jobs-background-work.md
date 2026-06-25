@@ -1,10 +1,8 @@
 # Jobs & Background Work — the Thinnest Thread Boundary
 
-Read when a save has slow/flaky/fan-out consequences (pushes, emails, webhooks, recurring cleanup) and you're deciding what runs on the request thread vs a job, and what rides across the queue.
+Read when a save has slow/flaky/fan-out consequences (pushes, emails, webhooks, recurring cleanup) and you're deciding what runs on the request thread vs a job.
 
-Active Job is a uniform interface over a swappable backend (Resque, Solid Queue — config, not code). `perform_later` is the only seam you touch. Everything below is what you refuse to put on either side of it.
-
-The one rule under all of it: **logic lives on models (synchronously callable); the job is the thinnest thread boundary, nothing more.** Conventions: `_later` = "enqueues a job," `_now` = the synchronous worker method.
+Active Job is a uniform interface over a swappable backend (Resque, Solid Queue — config, not code); `perform_later` is the only seam you touch. The one rule under everything below: **logic lives on models (synchronously callable); the job is the thinnest thread boundary, nothing more.** Conventions: `_later` = "enqueues a job," `_now`/the bare verb = the synchronous worker method.
 
 ---
 
@@ -26,7 +24,7 @@ class Room < ApplicationRecord
 end
 ```
 
-The model owns *what* the consequence is; the seam owns *where/when* it runs. Hanging everything on one callback that loops members and fires each push synchronously blocks the sender on a flaky gateway, fires N queries, and re-notifies on every edit.
+The model owns *what* the consequence is; the seam owns *where/when* it runs. One callback that loops members and pushes synchronously blocks the sender on a flaky gateway, fires N queries, and re-notifies on every edit.
 
 ## `after_create_commit`, never `after_create`/`after_save`
 
@@ -52,11 +50,11 @@ def unread_memberships(message)
 end
 ```
 
-The scopes carry "who needs an unread badge?" into SQL. `memberships.each { |m| m.update!(...) }` is N queries in a callback — and the shape that wrongly convinces people the *whole* consequence must go async. The bulk form is what keeps the in-band placement affordable.
+The scopes carry "who needs an unread badge?" into SQL. `memberships.each { |m| m.update!(...) }` is N queries in a callback — and the shape that wrongly convinces people the *whole* consequence must go async. The bulk form keeps the in-band placement affordable.
 
 ## The job is a two-line thunk
 
-Receive rehydrated records, delegate to a model verb, return. No logic — nothing to test because there's nothing in it.
+Receive rehydrated records, delegate to a model verb, return. No logic — nothing to test.
 
 ```ruby
 class Room::PushMessageJob < ApplicationJob
@@ -66,7 +64,7 @@ class Room::PushMessageJob < ApplicationJob
 end
 ```
 
-Logic in `perform` is **stranded behind the queue**: only runnable by enqueuing, only testable by draining a queue, only reusable by enqueuing again. Keep the work on the model so another code path can call it synchronously (Campfire's `deliver_webhook` is shared by job and sync callers for exactly this reason). 37signals state it as law: *"shallow job classes that delegate the logic itself to domain models."*
+Logic in `perform` is **stranded behind the queue**: only runnable by enqueuing, only testable by draining a queue, only reusable by enqueuing again. Keep the work on the model so another path can call it synchronously (Campfire's `deliver_webhook` is shared by job and sync callers for this reason). 37signals' law: *"shallow job classes that delegate the logic itself to domain models."*
 
 ## The guard lives on the `_later` wrapper, not in `perform`
 
@@ -80,7 +78,7 @@ def deliver_webhook(message)
 end
 ```
 
-The check runs synchronously at the call site, before any job exists — a bot with no webhook produces **zero queue rows**. `return unless ...` at the top of `perform` enqueues, occupies a worker, and deserializes records just to no-op, and copy-pastes the guard into every job that shares the precondition.
+The check runs at the call site before any job exists — a bot with no webhook produces **zero queue rows**. `return unless ...` atop `perform` still enqueues, occupies a worker, and deserializes records just to no-op.
 
 ## GlobalID: pass the record, not an id to re-find
 
@@ -92,7 +90,7 @@ class ApplicationJob < ActiveJob::Base
 end
 ```
 
-Call sites read in domain nouns; the vanished-record branch is written once as `discard_on`. `perform_later(message.id)` + `Message.find(id)` + a hand-rolled rescue re-implements what the framework already absorbs.
+Call sites read in domain nouns; the vanished-record branch is written once as `discard_on`. `perform_later(message.id)` + `Message.find(id)` + a hand-rolled rescue re-implements what the framework absorbs.
 
 ## Below the job: raw thread pools live in `lib/`
 
@@ -109,16 +107,16 @@ class WebPush::Pool
     rescue Exception => e
       Rails.logger.error "WebPush::Pool.deliver: #{e.class} #{e.message}"
     end
-  rescue Concurrent::RejectedExecutionError
+  rescue Concurrent::RejectedExecutionError              # pool full / shutting down — drop the push, never block the request
   end
 end
 ```
 
-Posting the live `subscription` lets fifty threads race for connections outside Rails' pool management → `connection pool exhausted` under load. "Reads first, then primitives" makes that impossible by construction; confining it to one `lib/` file keeps the rest of the app from thinking about executors.
+Posting the live `subscription` lets fifty threads race for connections outside Rails' pool management → `connection pool exhausted` under load. "Reads first, then primitives" makes that impossible by construction.
 
 ## Scheduled work: cron owns *when*, the model owns *what*
 
-The schedule file holds no logic — each entry names a schedule and calls a domain verb:
+Each entry names a schedule and calls a domain verb — no logic in the file:
 
 ```yaml
 # config/recurring.yml
@@ -131,11 +129,11 @@ production:
     schedule: every hour at minute 12
 ```
 
-Same thunk doctrine wearing a clock; `Card.auto_postpone_all_due` is console-callable with no scheduler running. Stagger minutes to spread load off the top of the hour. A dedicated `CleanupJob` with logic in `perform` is the stranded-logic problem with a timer.
+The thunk doctrine wearing a clock; `Card.auto_postpone_all_due` is console-callable with no scheduler running. Stagger minutes to spread load off the top of the hour.
 
 ## Resumable jobs: position-as-state
 
-For genuinely long work where a crash mid-run must not re-fire completed deliveries, use the cursor as the bookkeeping:
+For long work where a crash mid-run must not re-fire completed deliveries, use the cursor as the bookkeeping:
 
 ```ruby
 class Event::WebhookDispatchJob < ApplicationJob
@@ -151,7 +149,7 @@ class Event::WebhookDispatchJob < ApplicationJob
 end
 ```
 
-Die after webhook 40 → retry resumes at 41. A `delivered?` boolean is a migration, a write per delivery, and a flag that lies after partial failure — a second source of truth for what is really just position. The `step`/`cursor` scaffolding is declarative job-framework concern, not the domain logic the thunk rule forbids; the real work is still `webhook.trigger(event)`.
+Die after webhook 40 → retry resumes at 41. A `delivered?` boolean is a migration, a write per delivery, and a flag that lies after partial failure — a second source of truth for what is really just position. The `step`/`cursor` scaffolding is job-framework concern; the real work is still `webhook.trigger(event)`.
 
 ## Retry classification: a policy, not a prayer
 
@@ -175,7 +173,7 @@ module SmtpDeliveryErrorHandling
 end
 ```
 
-One blanket `rescue => e; retry` burns workers forever on a permanent `550`, and swallows genuinely novel errors. Each "common one we've seen" comment is a production incident fossilized into the classifier — accumulate yours the same way.
+One blanket `rescue => e; retry` burns workers forever on a permanent `550` and swallows novel errors. Each "common one we've seen" comment is a production incident fossilized into the classifier — accumulate yours the same way.
 
 ## Ambient tenancy across the job boundary
 
@@ -218,35 +216,14 @@ Threading `account_id` through every job signature is a parameter you can forget
 
 | Red flag in the diff | Fix |
 |---|---|
-| `after_create`/`after_save` enqueues a job or touches the network | `after_create_commit` — plain callbacks race the rollback (ghost row) |
+| `after_create`/`after_save` enqueues a job or touches the network | `after_create_commit` (ghost row otherwise) |
 | Real logic inside `perform` | Two-line thunk delegating to a model verb |
-| `return unless ...` guard at the top of `perform` | Move the guard to the `_later` wrapper, before enqueue |
-| `perform_later(record.id)` + `Model.find` in the job | Pass the record; GlobalID rehydrates; `discard_on ActiveJob::DeserializationError` |
-| `memberships.each { update! }` in a callback | One bulk `update_all` over composable scopes |
-| A live AR record handed into a raw thread / `pool.post` | All AR reads before the post; pass primitives; pool lives in `lib/` |
-| Scheduled job class with cleanup logic in `perform` | `recurring.yml` one-liner calling a model verb |
-| `delivered?` boolean tracking a long job's progress | `ActiveJob::Continuable` — `find_each(start: step.cursor)` + `step.advance!` |
-| One blanket `rescue => e; retry` | `retry_on` transient, `rescue_from` known-permanent by code prefix, `else raise` |
-| `account_id` threaded through job signatures by hand | `AccountTenanted`-style concern; prepend onto framework jobs too |
+| `return unless ...` guard atop `perform` | Move guard to the `_later` wrapper, before enqueue |
+| `perform_later(record.id)` + `Model.find` | Pass the record; `discard_on ActiveJob::DeserializationError` |
+| `memberships.each { update! }` in a callback | One bulk `update_all` over scopes |
+| Live AR record handed into `pool.post` | Reads before post; pass primitives; pool in `lib/` |
+| Scheduled job class with logic in `perform` | `recurring.yml` one-liner calling a model verb |
+| `delivered?` boolean tracking job progress | `ActiveJob::Continuable` + `find_each(start: step.cursor)` |
+| Blanket `rescue => e; retry` | `retry_on` transient, `rescue_from` permanent, `else raise` |
+| `account_id` threaded through job signatures | `AccountTenanted` concern; prepend onto framework jobs |
 | `enqueue_after_transaction_commit` unset in a multi-job app | Set it `true` globally |
-
----
-
-## The composition: a whole async surface in a dozen lines
-
-```ruby
-after_create_commit -> { room.receive(self) }   # trigger, at the durable altitude
-
-def receive(message)
-  unread_memberships(message)   # in-band: one bulk update_all
-  push_later(message)           # out-of-band: the thinnest thread boundary
-end
-
-class Room::PushMessageJob < ApplicationJob
-  def perform(room, message)
-    Room::MessagePusher.new(room:, message:).push
-  end
-end
-```
-
-One `_commit` trigger, one `receive` that draws the sync/async line, thunk jobs, `_later` wrappers carrying the guards, one `lib/` pool that reads first. The entire async surface of a production chat app — small because each boundary placed at its right altitude absorbs a bug class for free (ghost row, blocked sender, re-notify on edit, connection leak). It isn't doing less.

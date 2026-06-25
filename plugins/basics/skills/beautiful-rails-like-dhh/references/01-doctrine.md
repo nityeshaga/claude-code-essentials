@@ -23,20 +23,20 @@ Read this before you write, review, or architect any Rails code. This is the wor
 
 **The throughline: Rails stays small because each layer trusts a convention at its boundary.** The framework already knows what to name a DOM node, when a record is durable, how to reach a row through an association, when a cache key changes. 37signals code lets that knowledge live at the seam instead of re-deriving it by hand. Campfire's entire `Message` model is 44 lines; attachments, mentions, search, broadcasting all exist, each filed behind a convention boundary.
 
-**The yardstick: count the edge cases this line absorbs for free.** This is the single judgment tool for all code in this skill. When a line looks suspiciously short, don't think "elegant" — ask how many production bugs it makes unwriteable. `belongs_to :room, touch: true` absorbs an entire stale-cache bug class across every create and destroy path. `after_create_commit` differs from `after_save` by one word, and that word deletes the ghost-row bug class. When 37signals code is one-tenth the size of what you'd write, a convention at the boundary is silently doing the other nine-tenths.
+**The yardstick: count the edge cases this line absorbs for free.** This is the single judgment tool for all code in this skill. When a line looks suspiciously short, ask how many production bugs it makes unwriteable. `belongs_to :room, touch: true` absorbs a stale-cache bug class across every create and destroy path. `after_create_commit` differs from `after_save` by one word, and that word deletes the ghost-row bug class.
 
 Apply it both directions:
 
 - **Reviewing:** a short line backed by a convention beats a long explicit version. Don't "improve" `touch: true` into an `after_create` callback.
-- **Writing:** before adding a flag, table, service object, JSON endpoint, or client-side state store, ask which convention already absorbs the need. The subsystem you're about to build usually shouldn't exist. In Campfire, presence is a timestamp compared against a 60-second window (no sweeper), read-state is one nullable column (no `read_receipts` table), live update and HTTP response are the same HTML over two transports (no sync layer). **The missing subsystems ARE the doctrine.**
+- **Writing:** before adding a flag, table, service object, JSON endpoint, or client-side state store, ask which convention already absorbs the need. In Campfire, presence is a timestamp compared against a 60-second window (no sweeper), read-state is one nullable column (no `read_receipts` table), live update and HTTP response are the same HTML over two transports (no sync layer). **The missing subsystems ARE the doctrine.**
 
-When both Campfire (chat) and Fizzy (Kanban) reach for the same move, it's doctrine, not taste. Fizzy ships a `STYLE.md` writing it down: new resources instead of custom actions, thin controllers calling rich models with no service objects, shallow `_later`/`_now` jobs delegating to the model.
+When both Campfire (chat) and Fizzy (Kanban) reach for the same move, it's doctrine, not taste. Fizzy ships a `STYLE.md`: new resources instead of custom actions, thin controllers calling rich models with no service objects, shallow `_later`/`_now` jobs delegating to the model.
 
 ---
 
 ## 2. The ten-minute orientation
 
-Dropped into an unfamiliar Rails codebase, make three moves in order: **(1)** `ls app/models` — the nouns are the domain; **(2)** read each model's include line — **the include line IS the spec**, each name a concern at `app/models/<noun>/<trait>.rb`; **(3)** read `routes.rb` — the sitemap of every state change, where `resource :ban, only: %i[ create destroy ]` tells you banning is the *creation of a Ban*. Do **not** start by tracing a request through controllers — controllers tell you how models get poked, not what's true. Full orientation: `12-app-blueprint.md` §11.
+Dropped into an unfamiliar Rails codebase, make three moves in order: **(1)** `ls app/models` — the nouns are the domain; **(2)** read each model's include line — **the include line IS the spec**, each name a concern at `app/models/<noun>/<trait>.rb`; **(3)** read `routes.rb` — the sitemap of every state change, where `resource :ban, only: %i[ create destroy ]` tells you banning is the *creation of a Ban*. Do **not** start by tracing a request through controllers — they tell you how models get poked, not what's true. Full orientation: `12-app-blueprint.md` §11.
 
 ---
 
@@ -59,18 +59,7 @@ class Message < ApplicationRecord
 end
 ```
 
-2. *The consequence that refused to be a callback* — broadcasting is a call-path fact, so it's a plain method invoked by the interactive controller and the bot webhook, never by seeds:
-
-```ruby
-module Message::Broadcasts
-  def broadcast_create
-    broadcast_append_to room, :messages, target: [ room, :messages ]
-  end
-end
-
-@message.broadcast_create       # controller
-room.messages.create!(body: text, creator: user).broadcast_create  # webhook
-```
+2. *The consequence that refused to be a callback* — broadcasting is a call-path fact (interactive send vs. seed), so it's a plain method, never a callback. The full broadcast handshake is transport doctrine: `05-turbo-frames-streams.md`. The general callback-vs-explicit-method rule is owned by `02-models.md` §3.
 
 3. *Truth without a table* — a model can own a fact with no schema. Campfire's `FirstRun` is a PORO borrowing `create!` to orchestrate Account + Room + User; `Sound` is an in-memory catalog with `find_by_name`. The principle is ownership, not storage: decide which object is *responsible* and the storage question answers itself.
 
@@ -92,7 +81,7 @@ end
 
 One bulk insert stamped with the room's subclass-correct default, not N `create!` calls looping in a controller.
 
-**Not:** you'll be tempted to put the fan-out in the controller because that's where the request landed, or to bind *both* kinds of consequence to one callback and bolt on `attr_accessor :skip_broadcast` for seeds — don't. The flag is the smell: the moment you write `skip_broadcast`, you've admitted the consequence belongs to the caller.
+**Not:** don't put the fan-out in the controller because that's where the request landed, and don't bind both kinds of consequence to one callback with an `attr_accessor :skip_broadcast` for seeds. The flag is the smell: the moment you write `skip_broadcast`, you've admitted the consequence belongs to the caller.
 
 ---
 
@@ -117,7 +106,7 @@ scope :connected,    -> { where(connected_at: CONNECTION_TTL.ago..) }
 scope :disconnected, -> { where(connected_at: [ nil, ...CONNECTION_TTL.ago ]) }
 ```
 
-3. *The credential IS the URL* — `signed_id` capability links: no tokens table, no expiry checks, no sweeper. Mint and verify sit a few lines apart with the identical `purpose:`, so they can't drift; an avatar token can't replay as a transfer token:
+3. *The credential IS the URL* — `signed_id` capability links: no tokens table, no expiry checks, no sweeper. Mint and verify sit a few lines apart with the identical `purpose:`, so an avatar token can't replay as a transfer token:
 
 ```ruby
 def avatar_token = signed_id(purpose: :avatar)
@@ -125,13 +114,13 @@ def self.from_avatar_token(sid) = find_signed!(sid, purpose: :avatar)
 def transfer_id = signed_id(purpose: :transfer, expires_in: 4.hours)   # expiring variant
 ```
 
-4. *State as the absence of a row* (Fizzy) — a card is closed iff a `Closure` row exists: `scope :closed, -> { joins(:closure) }`, `scope :open, -> { where.missing(:closure) }`. Reopen is `closure&.destroy`. Fizzy's one-time login codes do the same in auth: `consume` *destroys* the code, and validity is `where(expires_at: Time.current...)` so the DB never returns a stale code.
+4. *State as the absence of a row* (Fizzy) — a card is closed iff a `Closure` row exists: `scope :closed, -> { joins(:closure) }`, `scope :open, -> { where.missing(:closure) }`. Reopen is `closure&.destroy`. Fizzy's one-time login codes do the same: `consume` *destroys* the code, and validity is `where(expires_at: Time.current...)` so the DB never returns a stale code.
 
 5. *Mentions are derived attachables* — an `@mention` is a signed global id in the rich-text body, rehydrated into a live `User` (`body.body.attachables.grep(User).uniq`), never a literal `@name` you regex back out. Renames propagate; duplicates can't collide.
 
-6. *A 304 is derivation at the HTTP layer* — `if stale?(etag: @user)` wraps expensive variant processing so it never runs on a hit; `fresh_when @messages` for collections. The avatar URL stamps `v: user.updated_at` so when content changes the key changes — no hand-bumped version integer.
+6. *A 304 is derivation at the HTTP layer* — `if stale?(etag: @user)` wraps expensive variant processing so it never runs on a hit; `fresh_when @messages` for collections. The avatar URL stamps `v: user.updated_at` so the key changes when content changes — no hand-bumped version integer.
 
-**Not:** you'll be tempted to add a `read_receipts` table, an `online` boolean, an `unread_count` counter, or a `position` integer because the feature "obviously needs storage" — don't. Ask what existing data already implies the fact. **Exceptions:** (a) store when the value is genuine user intent that can't be recomputed (Fizzy's dragged-into-place column `position`) — but even then it reaches the web as CRUD on a noun (P6), never a custom verb; (b) a *keyed cache* (key = `updated_at`) is a function with a memo and self-heals — fine; a *bumped counter* is a second authority and drifts. Never make the stored value the authority.
+**Not:** don't add a `read_receipts` table, an `online` boolean, an `unread_count` counter, or a `position` integer because the feature "obviously needs storage" — ask what existing data already implies the fact. **Exceptions:** (a) store when the value is genuine user intent that can't be recomputed (Fizzy's dragged-into-place `position`) — but even then it reaches the web as CRUD on a noun (P6), never a custom verb; (b) a *keyed cache* (key = `updated_at`) is a function with a memo and self-heals — fine; a *bumped counter* is a second authority and drifts. Never make the stored value the authority.
 
 ---
 
@@ -168,17 +157,17 @@ class_methods do
 end
 ```
 
-The attack surface becomes *enumerable* — grep the two opt-out verbs to list every public door. Forgetting a guard fails open; forgetting the opt-out fails closed (the new page demands a login until you notice).
+The attack surface becomes *enumerable* — grep the two opt-out verbs to list every public door. Forgetting a guard fails closed (the new page demands a login until you notice).
 
 3. *One predicate guards every write; a subclass bends it* — `can_administer?(record) = administrator? || self == record&.creator || record&.new_record?`, wired once as `before_action :ensure_can_administer, only: %i[ edit update destroy ]`. The Direct-room exception (everyone in a DM can administer) is a subclass override returning true (P7), not an `if room.direct?` in the base.
 
 4. *The ambient self-registering gate* — a concern mounts its own `before_action` in `included do`, so one line in `ApplicationController`'s include list guards every non-idempotent request against banned IPs. No per-action vigilance.
 
-5. *Fail closed; invalid means dangerous* — the SSRF guard's rescue arm returns `true` (blocked) when an address can't be parsed; `rescue → false` ("couldn't tell, let it through") is the hole. Fizzy's anti-enumeration: an unknown login email gets a **fake, never-saved** `MagicLink.new` through the *same* response path as a real one — one shape, nothing for an attacker to read.
+5. *Fail closed; invalid means dangerous* — the SSRF guard's rescue arm returns `true` (blocked) when an address can't be parsed; `rescue → false` is the hole. Fizzy's anti-enumeration: an unknown login email gets a **fake, never-saved** `MagicLink.new` through the *same* response path as a real one — one shape, nothing for an attacker to read.
 
 6. *Two failure manners, chosen by context* — `find_by!` (hard 404) for API-ish sub-resources; `find_by` + redirect for human navigation (`Current.user.rooms.find_by(id: cookies[:last_room]) || default_room`).
 
-**Not:** you'll be tempted to write `Model.find(params[:id])` then a permission check, or to rely on discipline across forty controllers and three years — don't. That's a hope, not a security model.
+**Not:** don't write `Model.find(params[:id])` then a permission check, and don't rely on discipline across forty controllers and three years. That's a hope, not a security model.
 
 ---
 
@@ -205,9 +194,9 @@ end
 
 3. *`touch:` declares the freshness edge once* — Russian-doll caching with no hand-maintained key. `belongs_to :room, touch: true`: touch the child → parent's `updated_at` bumps → parent fragment's key changes → cache expires through *every* create and destroy path. The key is `updated_at` — derived (P2), never a hand-bumped integer.
 
-4. *`to_key` is the convention bridge for identity itself* — override the one ActiveModel method `dom_id` consults, and the optimistic client node and the server's broadcast share an address (full story in P5).
+4. *`to_key` is the convention bridge for identity itself* — override the one ActiveModel method `dom_id` consults, and the optimistic client node and the server's broadcast share an address (full story in P5 / `05-turbo-frames-streams.md`).
 
-**Not:** you'll be tempted to type `"room_#{@room.id}_messages"` in the view and re-type it in the broadcast, or to hand-write `room.update(updated_at: Time.current)` — don't. Where convention genuinely can't reach (the client-side optimistic template that can't call the server's partial), make the seam loud with a warning comment at the top of both files. Reserve hand-discipline for exactly the places a function can't absorb.
+**Not:** don't type `"room_#{@room.id}_messages"` in the view and re-type it in the broadcast, and don't hand-write `room.update(updated_at: Time.current)`. Where convention genuinely can't reach (the client-side optimistic template that can't call the server's partial), make the seam loud with a warning comment at the top of both files. Reserve hand-discipline for exactly the places a function can't absorb.
 
 ---
 
@@ -215,23 +204,13 @@ end
 
 **Statement:** Render HTML on the server once, send that same HTML over every transport, and let identity conventions make the optimistic client node and the server's broadcast converge — so "the HTTP reply" and "the live update" are one feature.
 
-The naive realtime build makes two mistakes. First, it assumes the wire carries *data*, so each end must render — and now page render, the cable's `render_to_string`, and the stream reply are three copies that drift (**the two-renderer drift bug**). Invert it: **the wire carries HTML, not data** — the byte-identical output of one server partial — and the client only places it at a named target. Second, it treats the sender's optimistic bubble as special (broadcast-except-sender, temp-id reconciliation). It isn't — it's the same row; agree on identity from the first keystroke and the de-dupe is deleted, not written.
+The naive realtime build makes two mistakes. First, it assumes the wire carries *data*, so each end must render — and now page render, the cable's `render_to_string`, and the stream reply are three copies that drift (**the two-renderer drift bug**). Invert it: **the wire carries HTML, not data** — the byte-identical output of one server partial — and the client only places it at a named target. Second, it treats the sender's optimistic bubble as special. It isn't — it's the same row; agree on identity from the first keystroke and the de-dupe is deleted, not written.
 
 **Signature moves:**
 
 1. *One partial, every transport* — page load, the POST's turbo_stream reply, the cable broadcast, the edit replace, and the wake-from-sleep diff all render `messages/_message` and address by `dom_id`. Change the partial and every path changes together.
 
-2. *The optimistic-id handshake* — the client draws a placeholder with a UUID it chose; the server adopts it and teaches `dom_id` to speak it:
-
-```ruby
-before_create -> { self.client_message_id ||= Random.uuid }   # bots don't care
-
-def to_key
-  [ client_message_id ]
-end
-```
-
-`to_key` is the method `dom_id` consults, so the authoritative broadcast arrives carrying the placeholder's id, and Turbo **replaces in place** instead of stacking a duplicate. (Fizzy reaches the same convergence with `method: :morph`; see `06-morphing-live-updates.md`.)
+2. *The optimistic-id handshake* — the client draws a placeholder with a UUID it chose, the server adopts it via `to_key`, and the authoritative broadcast arrives carrying the placeholder's id so Turbo replaces in place instead of stacking a duplicate. Full 4-step handshake (the `before_create`/`to_key` code): `05-turbo-frames-streams.md` §"The optimistic-id handshake". (Fizzy reaches the same convergence with `method: :morph`; see `06-morphing-live-updates.md`.)
 
 3. *Two audiences, no branch* — `update` broadcasts a `replace` to spectators and plain-redirects the actor; each path is determined by where the request originated (the actor's submit was inside the edit frame), not an `if current_user ==` check.
 
@@ -239,7 +218,7 @@ end
 
 5. *The wire payload shrinks to a word* (Fizzy) — `broadcasts_refreshes` on the model + `turbo_stream_from @board` on the page + morph means the wire carries "refresh" and every browser re-renders the same partials. `touch:` + `broadcasts_refreshes` + `turbo_stream_from` = multiplayer with no bespoke realtime code.
 
-**Not:** you'll be tempted to broadcast JSON and template it client-side, to `render_to_string` a second copy for the cable, or to build broadcast-except-sender channels — don't. The few extra HTML bytes buy an entire layer (serializer, client renderer, schema, reconciler) you never write.
+**Not:** don't broadcast JSON and template it client-side, don't `render_to_string` a second copy for the cable, and don't build broadcast-except-sender channels. The few extra HTML bytes buy an entire layer (serializer, client renderer, schema, reconciler) you never write.
 
 ---
 
@@ -277,7 +256,7 @@ A model is allowed verbs; a controller is not. `reset_join_code` behind a standa
 
 4. *Even the URL's query state is a noun* (Fizzy) — a board filter is a real `Filter` record, found-or-built from params (`find_by_params(params) || build(params)`) via a canonical digest. The index is one line because the noun owns its own query.
 
-**Not:** you'll be tempted to write `member do post :ban end` and a fat action that opens a session, deletes rows, loops, and flips a status — don't. When an arrangement genuinely must be stored (P2's exception), keep the web shape: Fizzy's slide-a-column-left is `resource :left_position` whose `create` calls `@column.move_left`.
+**Not:** don't write `member do post :ban end` and a fat action that opens a session, deletes rows, loops, and flips a status. When an arrangement genuinely must be stored (P2's exception), keep the web shape: Fizzy's slide-a-column-left is `resource :left_position` whose `create` calls `@column.move_left`.
 
 ---
 
@@ -314,7 +293,7 @@ The pusher composes scopes like English (`relevant_subscriptions.merge(Membershi
 
 4. *The branch-erasing move holds at every altitude* (Fizzy) — the `Eventable` concern is a template-method loop: `eventable_prefix` derives the action name from `self.class.name`; the view dispatches by *computed partial name* (`render "events/event/eventable/#{event.action}"` guarded by `lookup_context.exists?`) — dozens of event types, zero `case`; adding one is dropping a file.
 
-**Not:** you'll be tempted to add a `kind` string column and branch on it, to model exclusive states as a fistful of booleans, or to fork an `Api::MessagesController` — don't. The fork drifts the day the human path grows a feature the copy doesn't.
+**Not:** don't add a `kind` string column and branch on it, don't model exclusive states as a fistful of booleans, and don't fork an `Api::MessagesController`. The fork drifts the day the human path grows a feature the copy doesn't.
 
 ---
 
@@ -322,7 +301,7 @@ The pusher composes scopes like English (`relevant_subscriptions.merge(Membershi
 
 **Statement:** A model's include list is its table of contents; each concern files a trait where it belongs — host-changing wiring inside `included do`, plain behavior in the module body, the named constructor beside the trait it builds — so you know what a class can do before reading a method. The problem with the 300-line god model isn't length; it's that a trait's pieces are *scattered*, so they drift and you can't find them. The `MessageService` escape hatch makes it worse: now the trait is a service plus a fan of hand-synced call sites.
 
-**The include line IS the spec**: `include Attachment, Broadcasts, Mentionee, Pagination, Searchable` (Campfire's Message stays 44 lines); Fizzy's `Card` runs one include to twenty-four traits and stays 95 lines.
+**The include line IS the spec**: `include Attachment, Broadcasts, Mentionee, Pagination, Searchable` (Campfire's Message stays 44 lines); Fizzy's `Card` runs one include to twenty-four traits and stays 95 lines. Adding a capability is adding one readable word, not fifty buried lines.
 
 **Signature moves:**
 
@@ -336,24 +315,20 @@ module Message::Searchable
     after_create_commit  :create_in_index
     after_update_commit  :update_in_index
     after_destroy_commit :remove_from_index
-    scope :search, ->(query) { joins("join message_search_index idx on messages.id = idx.rowid").where("idx.body match ?", query).ordered }
+    scope :search, ->(query) { ... }
   end
 
-  private                                      # behavior: plain methods
-    def create_in_index
-      execute_sql_with_binds "insert into message_search_index(rowid, body) values (?, ?)", id, plain_text_body
-    end
-    # update_in_index / remove_from_index follow the same shape
+  # private behavior methods follow
 end
 ```
 
-That concern is a *complete production full-text search feature* in ~25 lines — indexed, self-syncing, chainable, which is why `Current.user.reachable_messages.search(query).last(100)` composes auth + search + pagination on one line. Keep trait scopes chainable Relations, never methods returning arrays.
+The full `Searchable` concern (a complete production full-text search feature in ~25 lines) lives in `02-models.md` §8. Keep trait scopes chainable Relations, never methods returning arrays — that's why `Current.user.reachable_messages.search(query).last(100)` composes auth + search + pagination on one line.
 
 2. *Co-location makes desync unwriteable* — Avatar's mint (`signed_id(purpose: :avatar)`) and verify (`find_signed!(sid, purpose: :avatar)`) sit eight lines apart in one module, so the round-trip can't drift to different purposes. The callback that fires `create_in_index` sits directly above the method it calls.
 
 3. *The concern is where the other principles' outputs live* — P1's owned consequences file under their trait (`Bannable` owns `remove_banned_content_later`); P3's ambient gates install themselves from `included do`; P9's `_later` wrapper sits next to its synchronous twin.
 
-**Not:** you'll be tempted to open the class and add one more method (the file grows by fifty buried lines), or to peel logic into a `FooService` (the trait loses its home) — don't. Add a concern and add its name to the include line: the file grows by one readable word. The "action at a distance" worry is answered by naming — the host advertises which modules wire into it, on line one, in order.
+**Not:** don't open the class and add one more method (the file grows by fifty buried lines), and don't peel logic into a `FooService` (the trait loses its home). Add a concern and add its name to the include line. The "action at a distance" worry is answered by naming — the host advertises which modules wire into it, on line one, in order.
 
 ---
 
@@ -417,7 +392,7 @@ def deliver_later(payload, subscription)
 end
 ```
 
-**Not:** you'll be tempted to hang everything on one `after_save`, to stuff the real logic into the worker (trapped behind a queue you must boot to test), or to put the precondition inside the job — don't. The altitude question is decided *per consequence*, at the seam: marking-unread rides the `_commit` callback (true of every message) while broadcasting stays an explicit method (differs by call path).
+**Not:** don't hang everything on one `after_save`, don't stuff the real logic into the worker (trapped behind a queue you must boot to test), and don't put the precondition inside the job. The altitude question is decided *per consequence*, at the seam: marking-unread rides the `_commit` callback (true of every message) while broadcasting stays an explicit method (differs by call path).
 
 ---
 

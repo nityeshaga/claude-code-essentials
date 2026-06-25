@@ -55,7 +55,7 @@ Read **only** what the task needs. Each file opens with its own "read this when"
 | Jobs, emails, push, scheduled work, retries, multi-tenancy in jobs | `references/08-jobs-background-work.md` |
 | Anything slow; fragment/HTTP caching; ETags; invalidation | `references/09-caching-performance.md` |
 | Auth, authorization, tokens, bans, security review | `references/10-auth-security.md` |
-| A whole feature end-to-end — five worked examples + feature anatomy | `references/11-worked-features.md` |
+| Starting a feature — the naive shape to beat + the cross-cutting feature-anatomy checklist | `references/11-worked-features.md` |
 | New app; codebase structure; stack choices; what NOT to build | `references/12-app-blueprint.md` |
 | Reviewing code or a diff; auditing a codebase | `references/13-review-checklist.md` |
 | Mobile apps; tempted by React Native/Flutter; bridge components | `references/14-hotwire-native.md` |
@@ -71,6 +71,8 @@ For any new feature, work in this order, asking the question at each step:
 4. **View** — *One partial, addressed by `dom_id`*, serving every future path. (`04`)
 5. **Live layer** — *Pull or push?* Regions → frames; surgical → streams; multi-user → `broadcasts_refreshes` + morph. (`05`, `06`)
 6. **Polish** — *What's slow, what must the browser keep?* Jobs (`08`), caching (`09`), thin Stimulus (`07`).
+
+Front-load the expensive-to-reverse decisions (schema, the noun); back-load polish. Steps 5–6 often add zero new files. Then **audit by the ledger**: count what you did *not* build — the service object, the JSON endpoint, the boolean column, the position integer. A feature that absorbed its edge cases leaves a short ledger.
 
 Run the yardstick on each layer as you write it: every guard, loop, and hand-typed string is a candidate for a convention that absorbs it.
 

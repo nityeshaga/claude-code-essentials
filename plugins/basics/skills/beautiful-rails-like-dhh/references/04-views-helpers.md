@@ -2,15 +2,15 @@
 
 Read when writing or reviewing anything in `app/views` or `app/helpers` — templates, partials, layouts, helpers, or any code that names a DOM element another piece of code will later target.
 
-Two conventions carry this whole file: the **shared partial** (one renderer) and **`dom_id`** (one address). Everything else is their consequences.
+Two conventions carry this file: the **shared partial** (one renderer) and **`dom_id`** (one address).
 
 ---
 
 ## 1. The root bug: two things synced by hand
 
-Every view-layer disaster reduces to one shape: **two things you must keep equal by hand, in files that don't know about each other** — two copies of markup, or two hand-typed id strings that must match. Both fail silently. A drifted id throws no exception; the stream append just matches nothing. A drifted markup copy shows on reload but not on the live element, and nothing errors.
+Every view-layer disaster is the same shape: **two things you must keep equal by hand, in files that don't know about each other** — two copies of markup, or two hand-typed id strings that must match. Both fail silently: a drifted id throws nothing (the stream append just matches nothing); a drifted markup copy shows on reload but not on the live element.
 
-The naive first draft — each file looks fine in isolation:
+The naive first draft — each file looks fine alone:
 
 ```erb
 <%# rooms/show.html.erb — ids and markup typed by hand %>
@@ -34,9 +34,9 @@ The naive first draft — each file looks fine in isolation:
 <% end %>
 ```
 
-Three latent bugs, zero errors: the container id is typed in two files; the row id is `msg-#{id}` here and `message_#{id}` there (already disagreeing — the edit/replace path silently matches nothing); and the row markup exists twice, so every future change must be made twice.
+Three latent bugs, zero errors: the container id is typed in two files; the row id is `msg-#{id}` here and `message_#{id}` there (already disagreeing — the edit/replace path silently matches nothing); the row markup exists twice.
 
-The fix is not discipline — it's structure. Make the markup and the id **computed in one place** instead of typed in two; the drift becomes unwriteable. Both sides of the seam ask the framework the same question, so they cannot desync.
+The fix is structure, not discipline: make markup and id **computed in one place** instead of typed in two, so both sides of the seam ask the framework the same question and cannot desync.
 
 ---
 
@@ -44,18 +44,16 @@ The fix is not discipline — it's structure. Make the markup and the id **compu
 
 **When:** the same record renders in more than one moment — first load, index, live append, refresh catch-up, edit swap. In a Hotwire app that's *every* record.
 
-Write exactly one partial per renderable noun (`messages/_message.html.erb`) and point every path at it. Both Campfire entry points render the list with the identical line:
+Write exactly one partial per renderable noun (`messages/_message.html.erb`) and point every path at it:
 
 ```erb
 <%# rooms/show.html.erb AND messages/index.html.erb (Campfire) %>
 <%= render partial: "messages/message", collection: @messages, cached: true %>
 ```
 
-The turbo_stream response, the broadcast, and the refresh catch-up all render `messages/_message` — **the only file that knows what a message looks like.** This is **one renderer**: the fragment is rendered once and every transport carries that same HTML — the wire carries HTML, not data (transport in `05-turbo-frames-streams.md`).
+The turbo_stream response, the broadcast, and the refresh catch-up all render `messages/_message` — **the only file that knows what a message looks like.** This is **one renderer**: the fragment renders once and every transport carries that same HTML — the wire carries HTML, not data (transport in `05-turbo-frames-streams.md`).
 
-Shorthand resolves by convention: `render @messages` infers the partial from the model name and names the local after it; `render message` does the same for one record. Use shorthand when you can; use explicit `partial:`/`collection:` when you need `cached: true` (§4).
-
-The second copy costs every future change made twice — and the day one copy gets it and the other doesn't, half your screens drift with no exception anywhere.
+Shorthand resolves by convention: `render @messages` infers the partial from the model name; `render message` does the same for one record. Use shorthand when you can; use explicit `partial:`/`collection:` when you need `cached: true` (§4).
 
 ---
 
@@ -74,9 +72,9 @@ Never type the id; compute it. **dom_id is the address.**
 
 Container vs row is load-bearing: the *container* is addressed off the **parent** with a purpose prefix (`dom_id(room, :messages)`), the *row* off the **record itself** (`dom_id(message)`). Streams append to the container, replace/remove at the row.
 
-When the view writes `id: dom_id(message)` and a later operation targets `dom_id(message)`, both asked the same function about the same record — no second copy to drift. Across Campfire's five operations on a message (append on load, append on broadcast, append on refresh, replace on edit, remove on delete), not one path types an id string.
+Across Campfire's five operations on a message (append on load, broadcast, refresh; replace on edit; remove on delete), not one path types an id string.
 
-**Not:** `id="message_#{message.id}"` produces the same string today but is a second copy of the convention, and second copies drift. Don't thread a controller-computed `@target_id` through templates either — same bug in a routing costume.
+**Not:** `id="message_#{message.id}"` — same string today, second copy of the convention tomorrow. Don't thread a controller-computed `@target_id` through templates either — same bug in a routing costume.
 
 ---
 
@@ -88,7 +86,7 @@ When the view writes `id: dom_id(message)` and a later operation targets `dom_id
 <%= render partial: "messages/message", collection: @messages, cached: true %>
 ```
 
-Renders `_message` once per element, assigns each to a local named after the partial — no loop. Avoid the hand-written `<% @messages.each do %>` form: beyond brevity, the single render call over a known collection is **the seam that makes batched caching possible.** `cached: true` collapses N fragment-cache lookups into one batched `read_multi`; the loop has nowhere to hang the batch. (Cache mechanics — keys, `touch:`, nesting — in `09-caching-performance.md`.)
+Renders `_message` once per element, assigns each to a local named after the partial — no loop. Avoid the hand-written `<% @messages.each do %>` form: the single render call over a known collection is **the seam that makes batched caching possible.** `cached: true` collapses N fragment-cache lookups into one batched `read_multi`; the loop has nowhere to hang the batch. (Cache mechanics — keys, `touch:`, nesting — in `09-caching-performance.md`.)
 
 ---
 
@@ -112,14 +110,14 @@ Make three files derive the same frame id from `dom_id(message, :edit)`: the row
 </turbo-frame>
 ```
 
-Turbo sees a frame whose id matches one already on the page and swaps it in place. Because the id agreement carries the weight, the controller action is, in full:
+Turbo sees a frame whose id matches one on the page and swaps it in place. Because the id agreement carries the weight, the controller action is, in full:
 
 ```ruby
 def edit
 end
 ```
 
-Empty by convention, not laziness: `edit` with no explicit render renders `edit.html.erb`, whose outermost frame id already says where the result lands.
+Empty by convention: `edit` with no explicit render renders `edit.html.erb`, whose outermost frame id already says where the result lands.
 
 **Not:** a controller that computes a target id, JS that finds the row and swaps, or a full-page redirect — all re-create the hand-synced-strings bug or rebuild what the frame convention already does. (Frame navigation mechanics: `05-turbo-frames-streams.md`.)
 
@@ -141,8 +139,6 @@ Make the coupling **loud** — a twin-pointer comment at the top of **both** fil
 ```
 
 Even where markup can't be shared, share the *address convention*: the placeholder hard-codes `id="message_$clientMessageId$"` — the exact shape `dom_id` produces — so the optimistic node and the broadcast speak the same id grammar. (The full optimistic-id/`to_key` handshake is transport doctrine: `05-turbo-frames-streams.md`.)
-
-The discipline budget is spent on exactly the one spot convention can't reach, and nowhere else.
 
 ---
 
@@ -177,9 +173,9 @@ rescue Exception => e
 end
 ```
 
-The template now says `messages_tag(@room) do ... end`. Division of labor: the helper owns the container, the partial owns the row, each derives its own id from `dom_id`, no third place to disagree. (Bonus: the per-row `rescue` renders an `unrenderable` fallback so one corrupt record degrades one row instead of 500ing the page.)
+The template now says `messages_tag(@room) do ... end`. Division of labor: the helper owns the container, the partial owns the row, each derives its own id from `dom_id`. (Bonus: the per-row `rescue` renders an `unrenderable` fallback so one corrupt record degrades one row instead of 500ing the page.)
 
-Fizzy reaches for the same move — `card_article_tag` even reuses the `dom_id` value as the CSS `view-transition-name`, so the animation hook can't drift from the address:
+Fizzy reaches for the same move — `card_article_tag` reuses the `dom_id` value as the CSS `view-transition-name`, so the animation hook can't drift from the address:
 
 ```ruby
 def card_article_tag(card, **options, &)
@@ -204,7 +200,7 @@ Stash it into a named region; let the layout place it (Campfire):
 <% content_for :sidebar, sidebar_turbo_frame_tag(src: user_sidebar_path) %>
 ```
 
-The layout `yield`s `:sidebar` where it physically renders. The line that *decides* the sidebar isn't the line that *paints* it. The layout owns *where* regions render; views own *what* fills them — don't push page-specific UI up into the layout with conditionals.
+The layout `yield`s `:sidebar` where it renders. The layout owns *where* regions render; views own *what* fills them — don't push page-specific UI up into the layout with conditionals.
 
 ---
 
@@ -223,7 +219,7 @@ Drive a CSS class from data with the array form of `class:`, the boolean passed 
 
 The class is included only when the local is truthy. Whoever renders the partial decides the state; the partial reflects it. (`local_assigns` returns `nil` for an unpassed *optional* local instead of raising.) Styling lives in CSS against the class.
 
-**Not:** `<% if unread %>...<% else %>...<% end %>` wrapping near-duplicate markup is two copies (§1 again). This is the static half of "the DOM attribute IS the state" — the live half (Stimulus reading/writing attributes) is `07-stimulus-widgets.md`; the morph contract is `06-morphing-live-updates.md`.
+**Not:** `<% if unread %>...<% else %>...<% end %>` wrapping near-duplicate markup is two copies (§1). This is the static half of "the DOM attribute IS the state" — the live half (Stimulus reading/writing attributes) is `07-stimulus-widgets.md`; the morph contract is `06-morphing-live-updates.md`.
 
 ---
 

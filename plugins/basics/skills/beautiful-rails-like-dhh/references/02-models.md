@@ -8,7 +8,7 @@ Cross-refs: auth shape → `10-auth-security.md`; jobs/`_later` → `08-jobs-bac
 
 ## 1. The model is the single source of truth
 
-The schema is the one list of what a model *has*. Active Record reads it at boot and defines every accessor. A record is the single source of truth about a fact; every other representation (badge, flag, count, status) is computed *from* it, never stored beside it.
+The schema is the one list of what a model *has*. A record is the single source of truth about a fact; every other representation (badge, flag, count, status) is computed *from* it, never stored beside it.
 
 Don't declare a `FIELDS` constant, an `attr_accessor` for an existing column, or a "summary" column copying other rows. A stored copy is a second source of truth that will eventually disagree with the first. Campfire's `message.rb` is 44 lines and declares zero fields — the migration is the list; rename a column and exactly one place knows it.
 
@@ -18,7 +18,7 @@ The five model-layer tools — associations, validations, callbacks, scopes, enu
 
 ## 2. The callback lifecycle and the `_commit` discipline
 
-When you hook the save lifecycle — especially when the hook touches the world outside the database (job, push, email, broadcast).
+When a hook touches the world outside the database (job, push, email, broadcast):
 
 ```
  validations → before_save → before_create/update → INSERT/UPDATE → after_create/update → after_save → COMMIT → after_*_commit
@@ -33,11 +33,11 @@ For any consequence crossing the database boundary — push, job, broadcast, ema
 after_create_commit -> { room.receive(self) }   # (Campfire) fires only once the row is permanently real
 ```
 
-Fizzy: `after_create_commit :watch_card_by_creator`. Two products, same suffix, same situation — doctrine.
+Fizzy: `after_create_commit :watch_card_by_creator`.
 
-If you write plain `after_create` and the transaction rolls back after the hook fired, the row is undone but the phone already buzzed — fifty people notified about a message that no longer exists. That's **the ghost row**; the fix is one suffix.
+Write plain `after_create` and let the transaction roll back after the hook fired: the row is undone but the phone already buzzed — fifty people notified about a message that no longer exists. That's **the ghost row**; the fix is one suffix.
 
-**Plain `after_save` IS correct** for work that stays *inside* the database and *should* roll back with the save — bumping a counter column, stamping a denormalized field, writing a child row in the same logical unit. The rule: match the callback to whether the consequence belongs to the transaction or to the durable outside world.
+**Plain `after_save` IS correct** for work that stays *inside* the database and *should* roll back with the save — bumping a counter column, stamping a denormalized field, writing a child row in the same logical unit. Match the callback to whether the consequence belongs to the transaction or to the durable outside world.
 
 | Consequence | Callback |
 |---|---|
@@ -50,7 +50,7 @@ If you write plain `after_create` and the transaction rolls back after the hook 
 
 ## 3. Callback vs explicit method — whose fact is this?
 
-When a record's creation has consequences and you're deciding where the consequence code goes — the highest-leverage decision in the model layer. Ask: **whose fact is this?**
+When a record's creation has consequences, deciding where the consequence code goes is the highest-leverage decision in the model layer. Ask: **whose fact is this?**
 
 - True for **every record that exists**, however born (bot, import, seed, interactive) → property of the record. The model owns it: a callback.
 - True only because of **how this record came into being** (interactive send, right now, people watching) → property of the call path. A plain explicit method, called at each call site that wants it.
@@ -83,9 +83,7 @@ This question — not "fat model, skinny controller" — is what empties control
 
 ## 4. Compute before save, act after commit
 
-When a `_commit`-side effect needs to know **what changed**. Dirty flags (`title_changed?`) are live only *during* save; by `after_*_commit` they're reset and answer `false`.
-
-Split the work across the lifecycle: stash the verdict in plain Ruby memory before the write, read it after commit. Fizzy's Card uses two cooperating callbacks:
+When a `_commit`-side effect needs to know **what changed**. Dirty flags (`title_changed?`) are live only *during* save; by `after_*_commit` they're reset and answer `false`. Stash the verdict in plain Ruby memory before the write, read it after commit:
 
 ```ruby
 module Card::Broadcastable          # (Fizzy)
@@ -118,15 +116,15 @@ module Card::Pinnable               # (Fizzy) the other side of the COMMIT line
 end
 ```
 
-`before_update` freezes the verdict into `@preview_changed` while the flags are still truthful; the closing transaction can't reset an ivar. `after_update_commit ..., if: :preview_changed?` reads the stash. Two callbacks straddle the transaction boundary.
+`before_update` freezes the verdict into `@preview_changed` while the flags are still truthful; the closing transaction can't reset an ivar. `after_update_commit ..., if: :preview_changed?` reads the stash.
 
-Don't check the dirty flag *inside* the `_commit` hook — the guard is always false, the broadcast never fires. `saved_change_to_title?` works but couples the broadcast to one named attribute you'll forget to extend. The computation is only knowable before save; the broadcast only safe after commit. One callback can't be both places; two plus an ivar can.
+Don't check the dirty flag *inside* the `_commit` hook — the guard is always false, the broadcast never fires. `saved_change_to_title?` works but couples the broadcast to one named attribute you'll forget to extend. Two callbacks plus an ivar straddle the transaction boundary; one callback can't.
 
 ---
 
 ## 5. Associations carry their options
 
-When declaring any `belongs_to` / `has_many` / `has_one`. Load options onto the declaration line instead of scattering them through call sites.
+When declaring any `belongs_to` / `has_many` / `has_one`, load options onto the declaration line instead of scattering them through call sites.
 
 ```ruby
 belongs_to :room, touch: true                                          # save/destroy bumps room.updated_at
@@ -134,8 +132,8 @@ belongs_to :creator, class_name: "User", default: -> { Current.user }  # the mod
 has_many :boosts, dependent: :destroy
 ```
 
-- **`default: -> { Current.user }`** — the association supplies the creator; no controller threads `creator_id:` through every call site and forgets it in the webhook. Both products use this byte-for-byte on their core noun; Fizzy extends it: `belongs_to :account, default: -> { board.account }`. Doctrine.
-- **`touch: true`** — wires cache-freshness through every create/destroy path in one token (the payoff is collected in `09-caching-performance.md` / `06-morphing-live-updates.md`).
+- **`default: -> { Current.user }`** — the association supplies the creator; no controller threads `creator_id:` through every call site and forgets it in the webhook. Both products use this byte-for-byte on their core noun; Fizzy extends it: `belongs_to :account, default: -> { board.account }`.
+- **`touch: true`** — wires cache-freshness through every create/destroy path in one token (payoff in `09-caching-performance.md` / `06-morphing-live-updates.md`).
 - **`class_name:`** — name the association after the *role* (`creator`, `closed_by`), point it at the class. The role is the API; the class is an implementation detail.
 - **`dependent:` — choose deliberately:**
 
@@ -170,7 +168,7 @@ has_many :memberships, dependent: :delete_all do    # (Campfire)
 end
 ```
 
-`room.memberships.grant_to(users)` reads like a sentence and runs **one** `insert_all` instead of N saves. `proxy_association.owner` is the room, so the insert is stamped with *that room's* `default_involvement` (the STI seam, §9). `revise` wraps grant+revoke in one transaction so every caller gets atomicity for free.
+`room.memberships.grant_to(users)` runs **one** `insert_all` instead of N saves. `proxy_association.owner` is the room, so the insert is stamped with *that room's* `default_involvement` (the STI seam, §9). `revise` wraps grant+revoke in one transaction so every caller gets atomicity for free.
 
 Fizzy's same instinct: `Card#triage_into` wraps `resume; update!; track_event` in one transaction, and two call paths (drag-and-drop, triage button) call that one verb.
 
@@ -249,7 +247,7 @@ module Message::Pagination             # (Campfire)
 end
 ```
 
-Read bottom-up: `before`/`after` are bare time filters; `page_before` chains `before` + `last_page` (never re-typing SQL); `page_around` glues the deep-link slice. One `PAGE_SIZE` governs every rung, so page size can't drift. `page_around` returns an array — correct *here* because it's terminal, the last step before render. Build with Relations; collapse to an array only at the edge, on purpose, in one named place. The two `_since` rungs are the wake-from-sleep catch-up diff, each already capped at one page.
+Read bottom-up: `before`/`after` are bare time filters; `page_before` chains `before` + `last_page` (never re-typing SQL); `page_around` glues the deep-link slice. One `PAGE_SIZE` governs every rung, so page size can't drift. `page_around` returns an array — correct *here* because it's terminal, the last step before render. Build with Relations; collapse to an array only at the edge, on purpose, in one named place. The two `_since` rungs are the wake-from-sleep catch-up diff, each capped at one page.
 
 The moment a query method returns an array (`def self.search` with `.select { }`) it stops composing: nothing can chain `.last(100)` or an auth boundary, `update_all` is unreachable, and you're filtering in Ruby what the DB does in SQL. (Chaining a scope onto the authorization shape is `10-auth-security.md`.)
 
@@ -271,7 +269,7 @@ One declaration generates a family per value: a predicate (`involved_in_everythi
 - **Integer-backed (plain array)** is the deliberate exception for cold, ordinal, never-renamed values like `role`.
 - **`prefix:`** namespaces the family so multiple enums on one model can't collide.
 
-The generated scopes read like English:
+The generated scopes:
 
 ```ruby
 relevant_subscriptions.merge(Membership.involved_in_everything)                                # the "everything" tier
@@ -402,9 +400,7 @@ module Search::Record::Trilogy                # MySQL dialect — SAME scope nam
 end
 ```
 
-*Mix in the module named after whatever database I'm connected to.* Both define `scope :matching` — the shared name IS the contract — each in its own dialect. The branch resolves once at class-load; every caller writes `matching(query, account_id)`, never asks which engine. There's no `if adapter ==` and no place to add one. Branch on `adapter_name` inside each method instead and the day one method forgets the MySQL arm, the feature silently breaks on exactly one of your two builds.
-
-Same template-method instinct, turned outward: ask the connection what it is once, then dispatch through a name. (The full search feature is `11-worked-features.md`.)
+Both define `scope :matching` — the shared name IS the contract — each in its own dialect. The branch resolves once at class-load; every caller writes `matching(query, account_id)`, never asks which engine. There's no `if adapter ==` and no place to add one. Branch on `adapter_name` inside each method instead and the day one method forgets the MySQL arm, the feature silently breaks on exactly one of your two builds. (The full search feature is `11-worked-features.md`.)
 
 ---
 
@@ -453,7 +449,7 @@ class FirstRun                        # (Campfire) no table; owns "what it means
 end
 ```
 
-The controller calls `FirstRun.create!(user_params)` and reads like any resourceful create. A model is defined by *owning a truth and behaving like a model*, not by having a table. Don't reach for a YAML-plus-loader catalog, a multi-table setup smeared across a controller, or a `SetupService` name — borrow the resourceful names, skip the service-object vocabulary.
+A model is defined by *owning a truth and behaving like a model*, not by having a table. Don't reach for a YAML-plus-loader catalog, a multi-table setup smeared across a controller, or a `SetupService` name — borrow the resourceful names, skip the service-object vocabulary.
 
 ---
 
@@ -470,7 +466,7 @@ end
 redirect_to root_url if Account.any?         # mirror, guards setup from running twice
 ```
 
-No `setup_complete` flag. A flag can lie (delete every user and it still says "done"); `User.none?` asks the truth. The data *is* the state machine.
+No `setup_complete` flag. A flag can lie (delete every user and it still says "done"); `User.none?` asks the truth.
 
 **The satellite row** — for per-record state with metadata, a one-row satellite beats nullable columns:
 

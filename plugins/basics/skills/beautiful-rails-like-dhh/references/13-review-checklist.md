@@ -2,24 +2,7 @@
 
 Read when reviewing a diff/PR or auditing a Rails codebase against the doctrine. Every row is a smell as you'd spot it in code; every fix points at the reference file that owns it.
 
-The one yardstick: **count the edge cases a line absorbs for free** (rollback, second creation path, crashed laptop, copied-and-drifted string). Short lines should be short because a convention does the other nine-tenths; busy lines are usually re-implementing a convention by hand. → `01-doctrine.md` §1
-
----
-
-## The 10-point pre-merge quick check
-
-Highest-signal smells in scan order. Any hit: stop and read the owning reference.
-
-1. **`Model.find(params[:id])` then a permission check** — authorization must be the *shape* of the query: `Current.user.<association>.find(...)`. → `10-auth-security.md`
-2. **Plain `after_create`/`after_save`/`after_update` reaching outside the DB** (job, push, broadcast, email, index) — fires inside the transaction; a rollback leaves the ghost row. Must be `_commit` (after-durable). → `02-models.md`
-3. **The same markup or DOM id string in two places** — drift is silent. One renderer; `dom_id` is the address. → `04-views-helpers.md`
-4. **A new boolean that restates something derivable** (`used`, `online`, `read`, `unread_count`) — flags lie. Derive, don't store. → `02-models.md`
-5. **A custom member route verb** (`post :ban`, `post :archive`, `LoginController#authenticate`) — every state change is CRUD on a hidden noun. → `03-controllers-routing.md`
-6. **JSON on an internal wire** (`JSON.parse(request.body)`, serialized WebSocket payload, client template) — the wire carries HTML, not data. → `05-turbo-frames-streams.md`, `07-stimulus-widgets.md`
-7. **`case`/`if` on a type/kind column** — the runtime already dispatches on class. → `02-models.md`
-8. **A `position` integer renumbered on reorder** — order is derived from a sort axis, never stored. → `06-morphing-live-updates.md`
-9. **Real logic or a guard inside a job's `perform`** — the job is a two-line thunk; the guard lives on the `_later` wrapper. → `08-jobs-background-work.md`
-10. **`allow_unauthenticated_access` (or any skip) added in this diff** — a named hole in the secure-by-default wall; every one must be deliberate and reviewed by name. → `10-auth-security.md`
+The one yardstick: **count the edge cases a line absorbs for free** (rollback, second creation path, crashed laptop, copied-and-drifted string). Short lines are short because a convention does the other nine-tenths; busy lines usually re-implement a convention by hand. → `01-doctrine.md` §1
 
 ---
 
@@ -173,7 +156,7 @@ Audit question for this layer: **is any freshness fact stored rather than derive
 
 ## Severity ranking
 
-When time is short, triage in this order. Severity tracks *failure direction and silence*, not ugliness.
+When time is short, triage in this order — severity tracks *failure direction and silence*, not ugliness. This is also the scan order: hit a rank-1 smell, stop and read its owner first.
 
 | Rank | Class | Members | Why first |
 |---|---|---|---|
@@ -196,4 +179,4 @@ A diff that *adds* a rank 1–2 instance should not merge. Ranks 3–4 are stron
 5. **For every suspicious line, count the edge cases it FAILS to absorb.** Enumerate what the conventional move eats for free: the rollback, the destroy path skipped, the second creation path, the crashed client, the half-failed write, the copied line missing its guard. If the line handles none and the doctrine move handles all in fewer characters, name the edge case, name the move, cross-ref the owner.
 6. **Check composition last.** The deepest wins are interlocks: `touch:` + `broadcasts_refreshes` + `turbo_stream_from` + `method: :morph` = multiplayer for free; Relation scopes + auth-by-association + chainable `search` = leak-proof search in one line. When a diff hand-implements one, the finding is the missing composition (→ `01-doctrine.md`, `11-worked-features.md`).
 
-A clean review: the diff added nouns not verbs; callbacks say `_commit` and pass the whose-fact test; no fact is stored twice; every id and key is derived; every wire carries HTML; the new attack surface is empty or named; short lines got short by trusting a convention.
+A clean review: nouns not verbs; callbacks say `_commit` and pass the whose-fact test; no fact stored twice; every id and key derived; every wire carries HTML; the new attack surface is empty or named; short lines got short by trusting a convention.

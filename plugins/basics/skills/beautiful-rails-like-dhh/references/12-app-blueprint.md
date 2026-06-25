@@ -362,16 +362,9 @@ Don't build these up front for "we'll need it eventually" — each is a second p
 
 ## 10. The feature build order
 
-Build in this order, asking one question per step. The order front-loads expensive-to-reverse decisions (schema, nouns) and back-loads cheap ones (polish); each step's output is the next step's input.
+Build a feature in the six-step loop from SKILL.md ("The feature build loop": model+migration → routes → controller → view → Turbo → polish), one question per step. The insight that loop encodes: it **front-loads the expensive-to-reverse decisions (schema, nouns) and back-loads the cheap ones (polish)** — a wrong noun costs a migration and a rename everywhere; a wrong Stimulus controller costs a file. Per-step layer files: model `02`, routes/controller `03`, view `04`, Turbo `05`/`06`, Stimulus `07`.
 
-1. **Model + migration.** *What is the noun, and whose fact is this?* Find the smallest honest schema: derive, don't store (`02`); before adding a table, ask whether an existing join row can carry the fact — Campfire rides presence (`connected_at`), read-state (one nullable `unread_at`), and involvement (one enum) on the `Membership` join row.
-2. **Routes.** *Did I find the noun?* If you're typing `post :something`, you didn't. Nest under the parent, use `scope module:` so the controller lands where the URL says (`03`).
-3. **Controller.** *Am I about to write an `if`?* The action is ~two lines: load through `Current.user`, call one model verb. Logic here belongs one level down.
-4. **View.** *Will every path render this exact partial?* One partial per noun, root addressed by `dom_id` — first load, edit, broadcast, and search result must all paint with the same renderer or they drift (`04`).
-5. **Turbo.** *Replace or refresh?* For multiplayer pages, the morphing pair — `turbo_stream_from` + `broadcasts_refreshes` riding the `touch:` chain (`06`). For append feeds, targeted streams: subscribe, broadcast the same partial to the `dom_id` (`05`).
-6. **Polish.** *What's still manual?* Stimulus now, only as generic `data-*`-configured controllers (`07`). Fragment caching keyed on the record. Preload scopes for new N+1s.
-
-A feature this way is typically six small files — and steps 5–6 are often *zero* new files, because the `touch:`, `dom_id`, and one partial from steps 1–4 are exactly what Turbo composes. Don't start at step 6: UI-first inverts the dependency graph, inventing client state, wire formats, and endpoints for a frontend that doesn't know the truth yet.
+Two consequences worth holding: **steps 5–6 are often *zero* new files**, because the `touch:`, `dom_id`, and one partial from steps 1–4 are exactly what Turbo composes — multiplayer falls out of the data shape, not a separate build. And don't start at step 6: UI-first inverts the dependency graph, inventing client state, wire formats, and endpoints for a frontend that doesn't yet know the truth.
 
 ---
 

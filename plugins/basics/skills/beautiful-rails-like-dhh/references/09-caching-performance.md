@@ -14,7 +14,7 @@ Derive the cache key from the data it caches, so "the content changed" and "the 
 | HTTP response | ETag from the record/collection | `stale?(etag:)` / `fresh_when` |
 | URL | version stamp or content hash in the URL | `v: updated_at` param; digested filenames |
 
-A hand-bumped version (`fetch("message-#{id}-v3")`) and a freshness callback (`after_create { parent.update(updated_at:) }`) are both a second source of truth about "has this changed?" — and a second source eventually disagrees with the first. Stale-cache bugs don't crash; they quietly serve yesterday's HTML. Derive the key and the whole bug class becomes unwriteable.
+A hand-bumped version (`fetch("message-#{id}-v3")`) and a freshness callback (`after_create { parent.update(updated_at:) }`) are both a second source of truth about "has this changed?" — and a second source eventually disagrees with the first. Stale-cache bugs don't crash; they quietly serve yesterday's HTML.
 
 ## Fragment caching: hand `cache` the record
 
@@ -25,7 +25,7 @@ A hand-bumped version (`fetch("message-#{id}-v3")`) and a freshness callback (`a
 <% end %>
 ```
 
-Passing the **record** (not a string) makes Rails build the key from: model name + `id`, the record's `cache_version` (defaults to `updated_at`), and the **template digest** (hash of the partial's source + declared render dependencies). So a data edit busts it (`updated_at` bumps) and a markup edit busts it (digest changes on deploy) — no version number typed. A hand-assembled key opts out of both, which are the entire point.
+Passing the **record** (not a string) makes Rails build the key from model name + `id`, the record's `cache_version` (defaults to `updated_at`), and the **template digest** (hash of the partial's source + declared render dependencies). A data edit busts it (`updated_at` bumps); a markup edit busts it (digest changes on deploy). A hand-assembled key opts out of both, which are the entire point.
 
 ## The digest's blind spots: the dated-comment escape hatch
 
@@ -58,7 +58,7 @@ Cache children as fragments **inside** the parent, each keyed on its own record:
 <% end %>
 ```
 
-Invalidation flows outward (child busts parent), but render cost stays local: adding a boost to a 200-message room re-renders one boost, not one message and not 200. The wiring that makes a child bust the parent is `touch: true` below.
+Invalidation flows outward (child busts parent), but render cost stays local: adding a boost to a 200-message room re-renders one boost, not 200 messages. The wiring that makes a child bust the parent is `touch: true` below.
 
 ## `touch: true` is the freshness graph, declared once
 
@@ -100,7 +100,7 @@ class Users::AvatarsController < ApplicationController
 end
 ```
 
-`stale?(etag: @user)` derives an ETag (the record's `cache_version`), compares to `If-None-Match`, and on **match** returns `false` — the `if` block is skipped, Rails sends a bare `304`, the WebP processing never runs. `Rails.cache.fetch` would cache output on *your* server but still render and re-ship the payload; `stale?` lets the browser's copy answer "changed?", so a hit costs no render and no payload. You cached the decision to skip.
+`stale?(etag: @user)` derives an ETag, compares to `If-None-Match`, and on **match** returns `false` — the `if` block is skipped, Rails sends a bare `304`, the WebP processing never runs. `Rails.cache.fetch` would cache output on *your* server but still render and re-ship the payload; `stale?` lets the browser's copy answer "changed?", so a hit costs no render and no payload.
 
 ## `fresh_when` and composite ETags
 
@@ -170,7 +170,7 @@ Test: **is the stored value the authority, or a memo of an authority living else
 | When wrong | stays wrong until hand-corrected | self-heals on next key change |
 | Verdict | don't | fine |
 
-The badge should be a fresh count (`user.memberships.unread.count`); if that's too slow, cache it under a derived key — never bump it. "Derive, don't store" means "never make the stored value the *authority*," not "never store a computed value." A cache miss costs milliseconds; a counter's lie costs correctness, indefinitely.
+The badge should be a fresh count (`user.memberships.unread.count`); if that's too slow, cache it under a derived key — never bump it. "Derive, don't store" means "never make the stored value the *authority*," not "never store a computed value."
 
 ## Red flags → fixes
 
@@ -186,5 +186,3 @@ The badge should be a fresh count (`user.memberships.unread.count`); if that's t
 | Long `max-age` on a mutable stable URL | old content until expiry; purge scripts | stamp `v: updated_at`; `immutable` only when content is in the URL | url |
 | Hand-bumped counter (`unread_count += 1`) | drifts on missed path / half-failed txn | derive the count; cache under a derived key if slow | derived |
 | Cache-purge call in app code | hand-maintaining the key at the CDN | change the URL instead | url |
-
-**Carry this out:** a cache key is a second source of truth about "has this changed?" — derive it from the data at every altitude (`updated_at` in the fragment key, the ETag in the 304, the `v:` in the URL), and the key maintains itself.

@@ -1,8 +1,8 @@
 # Hotwire Native: Mobile Apps From the Web App You Already Have
 
-Read this when the task says "mobile app," "iOS," "Android," "app store," or "we need this on phones" — before you reach for React Native, Flutter, or a parallel native codebase.
+Read this when the task says "mobile app," "iOS," "Android," "app store," or "we need this on phones" — before reaching for React Native, Flutter, or a parallel native codebase.
 
-Related: `00-frontend-first-principles.md` (the worldview this extends), `03-controllers-routing.md` (the RESTful routing it depends on), `05-turbo-frames-streams.md` / `06-morphing-live-updates.md` / `07-stimulus-widgets.md` (the mechanics it rides), `12-app-blueprint.md` (where mobile sits in an app's life).
+Related: `00-frontend-first-principles.md` (the worldview), `03-controllers-routing.md` (RESTful routing it depends on), `05-turbo-frames-streams.md` / `06-morphing-live-updates.md` / `07-stimulus-widgets.md` (the mechanics it rides), `12-app-blueprint.md`.
 
 ---
 
@@ -10,14 +10,14 @@ Related: `00-frontend-first-principles.md` (the worldview this extends), `03-con
 
 The frontend question was never "web or native" — it's **one renderer or two**. Hotwire Native keeps the answer at one.
 
-**Do:** wrap your existing server-rendered web app in a thin Hotwire Native shell. The screens ARE the web app — the HTML/CSS your server renders, displayed inside a native shell that intercepts link taps and pushes each page onto a real native navigation stack (platform animations, interactive pop gestures, pull-to-refresh, cached screenshots for instant back-nav). The shell is a `Navigator` managing one shared `WKWebView` (iOS) / `WebView` (Android), a JSON config file, and a few bridge components. Everything else is the Rails app you already have.
+**Do:** wrap your existing server-rendered web app in a thin Hotwire Native shell. The screens ARE the web app — the HTML/CSS your server renders, inside a native shell that intercepts link taps and pushes each page onto a real native navigation stack (platform animations, interactive pop gestures, pull-to-refresh, cached screenshots for instant back-nav). The shell is a `Navigator` managing one shared `WKWebView` (iOS) / `WebView` (Android), a JSON config file, and a few bridge components. Everything else is the Rails app you already have.
 
 What it buys:
 - **One codebase, every platform.** New screen = new page. `kamal deploy` and every client has it on next load — no app-store review, no version skew.
-- **Real native app.** Real binary, real nav controllers, real push entitlements. Users install from the store; navigation is all native.
-- **Per-screen progressive enhancement.** Any single screen — or one component on a screen — can be upgraded to Swift/Kotlin when fidelity demands; everything else stays web.
+- **Real native app.** Real binary, nav controllers, push entitlements, store install; navigation is all native.
+- **Per-screen progressive enhancement.** Any single screen — or one component on it — upgrades to Swift/Kotlin when fidelity demands; everything else stays web.
 
-**Don't:** reach for React Native/Flutter or a parallel SwiftUI/Compose app. Each is a **second renderer** (a third, with two mobile platforms), plus a JSON API, a client state store, a client router, and a payload contract every codebase honors forever — the exact drift war `00-frontend-first-principles.md` refuses, re-declared on two more platforms. And it's worse than the SPA version: every fix waits on app-store review, and old binaries with old contract expectations live in the field for months.
+**Don't:** reach for React Native/Flutter or a parallel SwiftUI/Compose app. Each is a second renderer (a third, with two mobile platforms) plus a JSON API, client state store, router, and payload contract every codebase honors forever — the drift war from `00-frontend-first-principles.md`, re-declared on two more platforms, and worse: every fix waits on app-store review, and old binaries with old contract expectations live in the field for months.
 
 37signals ships HEY and Basecamp to both stores this way.
 
@@ -26,32 +26,30 @@ What it buys:
 ## 2. The architecture
 
 ```
-                    ┌─────────────────────────────────────────┐
-                    │            NATIVE SHELL (thin)           │
-                    │  Navigation stack · tabs · modals        │
-                    │  push/pop animations · gestures          │
-                    │  pull-to-refresh · error + retry screens │
-                    │   ┌──────────────────────────────────┐   │
-  link tap ───────▶ │   │   ONE SHARED WKWebView / WebView  │   │
-  intercepted,      │   │   server-rendered HTML + CSS      │   │
-  screen pushed     │   │   Turbo Drive · Frames · Streams  │   │
-  natively, page    │   │   Stimulus · morphing             │   │
-  loaded inside ──▶ │   │   = the web app, unmodified       │   │
-                    │   └──────────────────────────────────┘   │
-                    │  path-configuration.json  ◀── also served │
-                    │  (which URLs are modals,      remotely    │
-                    │   tabs, native screens…)                  │
-                    │  bridge components (Swift/Kotlin) ◀──▶    │
-                    │  paired Stimulus controllers in the HTML │
-                    └────────────────────┬─────────────────────┘
-                                         │ plain HTTPS — HTML over the wire
-                                         ▼
-                    ┌─────────────────────────────────────────┐
-                    │     THE RAILS APP — none the wiser       │
-                    │  same routes · controllers · partials ·  │
-                    │  broadcasts. One branch:                 │
-                    │  hotwire_native_app?  (user-agent check) │
-                    └─────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│            NATIVE SHELL (thin)           │
+│  nav stack · tabs · modals · gestures    │
+│  pull-to-refresh · error + retry screens │
+│   ┌──────────────────────────────────┐   │
+│   │   ONE SHARED WKWebView / WebView  │   │
+│   │   server-rendered HTML + CSS,     │   │
+│   │   Turbo · Stimulus · morphing     │   │
+│   │   = the web app, unmodified       │   │
+│   └──────────────────────────────────┘   │
+│  path-configuration.json (also served    │
+│    remotely): which URLs are modals,      │
+│    tabs, native screens…                  │
+│  bridge components (Swift/Kotlin) ◀──▶    │
+│    paired Stimulus controllers in HTML    │
+└────────────────────┬─────────────────────┘
+                     │ plain HTTPS — HTML over the wire
+                     ▼
+┌─────────────────────────────────────────┐
+│     THE RAILS APP — none the wiser       │
+│  same routes · controllers · partials ·  │
+│  broadcasts. One branch:                 │
+│  hotwire_native_app? (user-agent check)  │
+└─────────────────────────────────────────┘
 ```
 
 Link tap → screenshot current page → push a new screen with the platform animation → shared web view loads the new URL. Back pops natively against the cached screenshot. The server sees ordinary Turbo requests.
@@ -77,15 +75,13 @@ Doctrine:
 
 Manual nav exists inside native screens (`navigator.route(url)`, `navigator.pop()`, `navigator.clearAll()`) — but even the escape hatch routes through a URL.
 
-**Don't** grab the nav controller and push view controllers yourself, or build a native router that owns the screen graph — the docs advise against it even for native screens. Navigation in the binary means an app-store release per flow change, and the web/native graphs drift.
-
-**Why:** your `routes.rb` is already a complete screen graph, testable with `curl`. Reusing it as the native nav contract means one map of the app. On mobile, the URL literally *is* the screen identity, the stack instruction, and the rollback lever.
+**Don't** push view controllers yourself or build a native router that owns the screen graph (the docs advise against it even for native screens): a nav change in the binary means an app-store release per flow change, and the web/native graphs drift. Your `routes.rb` is already a complete screen graph, testable with `curl` — reuse it as the native nav contract. On mobile the URL literally *is* the screen identity, the stack instruction, and the rollback lever.
 
 ---
 
 ## 4. Path configuration: navigation policy as server data
 
-Declare any non-default presentation here, not in Swift/Kotlin. A JSON file with two keys: `settings` (app-level data / feature flags, remotely controllable) and `rules` (regex URL patterns → presentation properties). Rules apply **sequentially**: first rule sets the `.*` default, later rules override.
+Declare any non-default presentation here, not in Swift/Kotlin. A JSON file with two keys: `settings` (app-level data / feature flags, remotely controllable) and `rules` (regex URL patterns → presentation properties). Rules apply **sequentially**: first sets the `.*` default, later rules override.
 
 ```json
 {
@@ -97,7 +93,7 @@ Declare any non-default presentation here, not in Swift/Kotlin. A JSON file with
 }
 ```
 
-The second rule is the whole doctrine: *every form screen in the app* presents as a native modal (pull-to-refresh off so the gesture can't fight the dismiss swipe or wipe a half-entered form) — one rule, every form, including forms you haven't built. It works only because resourceful routing puts every form at `/new`. Sloppy routes (`/createWidget`, `post :open_form`) are unmatchable and would each need their own rule or native code.
+The second rule is the whole doctrine: *every form screen in the app* presents as a native modal (pull-to-refresh off so the gesture can't fight the dismiss swipe or wipe a half-entered form) — one rule, every form, including ones you haven't built. It works only because resourceful routing puts every form at `/new`. Sloppy routes (`/createWidget`, `post :open_form`) are unmatchable and each need their own rule or native code.
 
 Properties the framework understands:
 
@@ -130,9 +126,7 @@ Hotwire.loadPathConfiguration(
 
 Version remote filenames per platform (`ios_v1.json`); point a new build at `_v2.json` while old clients keep `_v1.json`. Patterns match path *and* query string by default; wrap query matches in `.*` both sides, or disable with `Hotwire.config.pathConfiguration.matchQueryStrings = false`.
 
-**Don't** hardcode nav rules in the binary (a Swift `switch` on paths, per-screen booleans) — every binary rule needs an app-store review to change; every JSON rule changes by deploying Rails. Same instinct as **config over forks** for Stimulus (`07-stimulus-widgets.md`): one generic shell, varied by server-controlled data.
-
-**Why:** emergency rollbacks, A/B presentation changes, per-version compatibility — all absorbed by remote config, reversible in one deploy. Screen behaves badly as a push? Make it a modal in JSON. Needs to vanish tonight? `"presentation": "none"`.
+**Don't** hardcode nav rules in the binary (a Swift `switch` on paths, per-screen booleans) — every binary rule needs an app-store review to change; every JSON rule changes by deploying Rails. Same instinct as **config over forks** for Stimulus (`07-stimulus-widgets.md`). Emergency rollbacks, A/B presentation changes, per-version compatibility are all absorbed by remote config, reversible in one deploy: bad as a push? make it a modal in JSON. Vanish tonight? `"presentation": "none"`.
 
 ---
 
@@ -178,7 +172,7 @@ final class ButtonComponent: BridgeComponent {
 
 Register once at startup: `Hotwire.registerBridgeComponents([ButtonComponent.self])` (iOS) / `Hotwire.registerBridgeComponents(BridgeComponentFactory("button", ::ButtonComponent))` (Android).
 
-Who owns what: HTML **declares** the action; native **decorates** (renders a `UIBarButtonItem`); the tap **replies into the web**, where `this.element.click()` performs real navigation via the real link. The native component holds no state and triggers no behavior of its own — a thin decorator over server-rendered HTML, which stays the source of truth.
+Who owns what: HTML **declares** the action; native **decorates** (renders a `UIBarButtonItem`); the tap **replies into the web**, where `this.element.click()` performs real navigation via the real link. The native component holds no state — a thin decorator over server-rendered HTML, which stays the source of truth.
 
 Finishing discipline:
 - **Hide the web fallback with scoped CSS, not by deleting it.** The bridge stamps the supported-component list on the page, so this hides the web element *only* when the running app supports the component — web users and old app versions keep the working element:
@@ -223,11 +217,9 @@ Android — annotate a fragment `@HotwireDestinationDeepLink(uri = "hotwire://fr
 
 Links *into* it are plain `<a>`; links *out* go through `navigator.route(url)`.
 
-**The undo is the point.** Because native screens resolve through the remotely-served path config, a broken one rolls back by deleting one JSON property: remove `view_controller` (iOS) / `uri` (Android) and the shell loads `/numbers` as a web view — a page you control, no app-store review. So build the boring web version *first*; the fallback exists before the native screen does. Capped downside (revert is a JSON edit), native upside.
+**The undo is the point.** Because native screens resolve through the remotely-served path config, a broken one rolls back by deleting one JSON property: remove `view_controller` (iOS) / `uri` (Android) and the shell loads `/numbers` as a web view — no app-store review. So build the boring web version *first*; the fallback exists before the native screen does.
 
-**Don't** take this hatch for forms, lists, or live views of shared data ("settings would feel nicer native," "the feed should be a native list"). The yardstick from `00-frontend-first-principles.md` §6 holds on mobile: is the user editing a *canvas*, or looking at a *document that changes*? A native screen is two implementations (Swift AND Kotlin), each needing platform expertise, each change waiting on review — per screen, forever. A web screen is one ERB template. The docs' justified examples are maps and camera flows, not CRUD.
-
-**Why:** the per-screen ladder — web screen → bridge component → fully native — is the same escalation discipline as Hotwire's rung ladder (`00-frontend-first-principles.md` §4): reach for the lowest rung; most screens never leave rung one. That's how one person (or one agent) ships full products to both stores.
+**Don't** take this hatch for forms, lists, or live views of shared data ("settings would feel nicer native"). The yardstick from `00-frontend-first-principles.md` §6 holds on mobile: is the user editing a *canvas*, or looking at a *document that changes*? A native screen is two implementations (Swift AND Kotlin), each needing platform expertise, each change waiting on review — per screen, forever. A web screen is one ERB template. The docs' justified examples are maps and camera flows, not CRUD. The per-screen ladder (web → bridge component → fully native) is the same escalation discipline as Hotwire's rung ladder (`00-frontend-first-principles.md` §4): reach for the lowest rung; most screens never leave rung one.
 
 ---
 
@@ -263,50 +255,18 @@ Closing a native modal is a one-word controller change — not Swift, not Kotlin
 
 **What does NOT change: auth and sessions.** The shell is a real browser loading your real domain over HTTPS — your existing cookie session (`12-app-blueprint.md` §7) works as-is; the signed cookie rides every web-view request. The login form is a web screen. If shell code must share the web view's cookies, iOS exposes `Hotwire.config.makeCustomWebView` for a `WKWebView` with a shared `WKProcessPool` — a shell concern, not Rails'. Two platform notes: camera/mic via `<input type="file">` needs `NSCameraUsageDescription` (+ `NSMicrophoneUsageDescription`) in iOS `Info.plist`; on Android, stamp `data-native-prevent-pull-to-refresh` on elements whose gestures fight pull-to-refresh.
 
-**Don't** build token/JWT auth "because mobile apps use tokens" — that reflex belongs to API-consuming native apps; this app consumes pages, and pages already have a session.
-
-**Why:** everything the native app needs, it asks for in the browser's language — URLs, cookies, HTML, redirects. The native shell is just one more client honoring the same boundary: no per-client endpoints, no content-negotiation matrix, no auth fork.
+**Don't** build token/JWT auth "because mobile apps use tokens" — that reflex belongs to API-consuming native apps; this app consumes pages, and pages already have a session. Everything the native app needs, it asks for in the browser's language: URLs, cookies, HTML, redirects. No per-client endpoints, no content-negotiation matrix, no auth fork.
 
 ---
 
 ## 8. When to build mobile apps — and what not to build
 
-**Sequence it web-first, apps after the product is proven.** The web app is where you find the product (fastest iteration, no review gates, one deploy), and every screen you ship there is already most of the mobile app. When usage justifies store presence, the incremental cost is the thin shell: a `Navigator` + start URL (iOS getting-started is one `SceneDelegate`; Android one `HotwireActivity` + `NavigatorConfiguration`), a path config whose first draft is the canonical two rules of §4, and bridge components added as screens earn them. Mobile is a new *client* of steps you already finished, not a new feature pipeline.
+**Sequence it web-first, apps after the product is proven.** The web app is where you find the product (fastest iteration, no review gates, one deploy), and every screen you ship there is already most of the mobile app. When usage justifies store presence, the incremental cost is the thin shell: a `Navigator` + start URL (iOS getting-started is one `SceneDelegate`; Android one `HotwireActivity` + `NavigatorConfiguration`), a path config whose first draft is the canonical two rules of §4, and bridge components added as screens earn them.
 
 What you do NOT build:
 - **No API layer** — the apps consume the same server-rendered HTML; the HTML controllers ARE the API.
-- **No mobile backend, BFF, serializers, or client SDK** — all machinery for feeding a second renderer you don't have.
+- **No mobile backend, BFF, serializers, or client SDK** — machinery for a second renderer you don't have.
 - **No parallel design system** — the CSS is the design system; bridge components borrow native chrome where it matters.
 - **No per-platform feature work** — a feature ships when the web page ships; both platforms get it instantly.
 
-**Don't start the native apps early** ("we'll need them eventually"). Starting early forces you to stabilize screens (and contracts, if you defected to an API) before the product settles; every pre-PMF pivot then costs three codebases plus review cycles. "Later" is cheap here: the apps are mostly already built, because they're the web app.
-
-**Why:** web-first costs nothing on mobile-day-one (the shell wraps whatever exists) and saves the entire drift war if the product pivots. Take the bet with capped downside.
-
----
-
-## 9. Red flags → fixes
-
-| Red flag | The fix |
-|---|---|
-| React Native / Flutter / parallel SwiftUI-Compose for a server-rendered product | Hotwire Native shell — the screens are the web app; one renderer, every platform (§1) |
-| Building a JSON API "for the mobile app" | Apps consume the same HTML; the HTML controllers ARE the API (§8, `12-app-blueprint.md` §9) |
-| Writing a screen natively that's just a form, list, or live document | It's a web screen; canvas-vs-document yardstick holds on mobile (§6, `00-frontend-first-principles.md` §6) |
-| Hardcoding nav rules in the binary (URL switches, per-screen flags) | Path configuration rules — nav policy is server-controllable data (§4) |
-| Path config bundled only locally, or served only remotely | Both: bundled for offline first-launch, remote for live control; versioned `ios_v1.json` / `android_v1.json` (§4) |
-| Decorating individual links with native presentation | One regex rule per URL *pattern* — `"/new$"` → modal covers every form (§4) |
-| Forms as pushed screens with pull-to-refresh on | `context: modal`, `pull_to_refresh_enabled: false` — the gesture fights the dismiss swipe and eats input (§4) |
-| Bridge messages carrying domain state or behavior | Bridge data is decoration-grade (titles, flags); behavior stays in the HTML the native side clicks into (§5) |
-| Deleting the web element a bridge component replaces | Hide via `[data-bridge-components~=…]`-scoped CSS so unsupported clients keep the fallback (§5) |
-| Bridge controllers mixed with domain Stimulus controllers | `bridge/` subdirectory; domain-blind adapters, a different species (§5) |
-| Pushing native view controllers / fragments manually | Route everything — even native screens — through path config via `view_controller` / `uri` (§3, §6) |
-| Native screen shipped with no web fallback | Build the web version first; rollback is then deleting one JSON property (§6) |
-| Token/JWT auth flows built for the apps | The shell is a browser on your domain; the cookie session works as-is (§7) |
-| Controller redirects stranding native modals after submit | `recede_or_refresh_or_resume_or_redirect_to` family — the server drives the native stack (§7) |
-| `hotwire_native_app?` branches multiplying through every view | Hide chrome and little else; if every view forks, you're building a second app — promote to variants sparingly (§7) |
-| App screens served from a second domain | Off-domain is *external* — it falls into an in-app browser; keep one domain (§3) |
-| Starting native apps before the web product is proven | Web first; the shell wraps whatever exists, later, cheaply (§8) |
-
----
-
-**Bottom line:** mobile is not a second product — it's the same one renderer, wearing platform chrome. The server keeps rendering every screen, the URL keeps carrying the contract (now into the navigation stack), and the native code is a thin shell plus small decorators, all overridable from the server you already deploy. The discipline — RESTful routes, one domain, one renderer, HTML as source of truth — is the same the rest of the skill demanded. The apps are the reward for having followed it.
+**Don't start the native apps early** ("we'll need them eventually"). Starting early forces you to stabilize screens (and contracts, if you defected to an API) before the product settles; every pre-PMF pivot then costs three codebases plus review cycles. "Later" is cheap: the apps are mostly already built, because they're the web app.
