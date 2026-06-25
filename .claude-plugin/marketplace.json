@@ -7,15 +7,9 @@
   },
   "plugins": [
     {
-      "name": "coding-tutor",
-      "description": "Personalized coding tutorials with spaced repetition",
-      "version": "2.1.1",
-      "source": "./plugins/coding-tutor"
-    },
-    {
       "name": "basics",
       "description": "Essential commands, agents, hooks, and skills for everyday development workflows",
-      "version": "1.7.1",
+      "version": "1.8.0",
       "source": "./plugins/basics"
     },
     {
