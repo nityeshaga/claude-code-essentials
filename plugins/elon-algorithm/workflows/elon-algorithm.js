@@ -6,7 +6,7 @@ export const meta = {
     { title: 'Clone', detail: 'copy the artifact so the swarm works on the clone' },
     { title: 'Crux', detail: 'pin the job-to-be-done in one or two plain sentences (Chad\'s yardstick)' },
     { title: 'Review', detail: "delete lane: bird's-eye (cross-file fate + redundancy) -> per-file coarse outcome" },
-    { title: 'Chad', detail: 'Chad meets each survivor cold and asks dumb questions; a defender rewrites it to survive him' },
+    { title: 'Chad', detail: 'Chad meets each survivor cold and asks dumb questions; a defender rewrites it; a fresh Chad re-reads the rewrite (up to 2 rounds)' },
     { title: 'Debate', detail: 'per cut: lone objection -> deletion rebuttal (deletion gets last word)' },
     { title: 'Judge', detail: 'single judge, cuts by default, cut beats rewrite; returns plan + ranked add-back menu' },
   ],
@@ -37,22 +37,51 @@ Ask whatever dumb question the moment calls for -- anything a confused, impatien
 - quote the exact span that lost you and ask about THOSE words.
 You are unimpressed by cleverness for its own sake -- a nice metaphor, "the most X", a careful caveat: none of it lands if it doesn't move your job forward. You never pretend to understand something to look smart. You don't do taste debates ("it adds context" / "it sets the tone" -- you're the one it's for, and it didn't). You don't rewrite; you ask sharp, pointed, dumb questions.`
 
-// A Chad pass over one unit of surviving content: Chad asks -> defender rewrites to survive him (defender gets the last word).
-const CHAD_SCHEMA = { type: 'object', required: ['decision'], properties: { decision: { type: 'string', enum: ['rewrite', 'clean'] }, changeSummary: { type: 'string' }, newText: { type: 'string' }, questions: { type: 'string' } } }
+// A Chad pass over one unit of surviving content, up to 2 rounds. Each round: a FRESH, amnesiac Chad cold-reads
+// the current version and the defender updates it. Round 2's Chad reads round 1's rewrite (a new generation can
+// smuggle in fresh slop), and the defender gets one last pass to fix whatever Chad is still unimpressed by.
+// Capped at 2 rounds so the polish loop can't run forever; whatever the defender argues against in the final pass goes to the human.
+const CHAD_Q_SCHEMA = { type: 'object', required: ['questions'], properties: { questions: { type: 'array', items: { type: 'string' } } } }
+const DEFEND_SCHEMA = { type: 'object', required: ['decision'], properties: {
+  decision: { type: 'string', enum: ['rewrite', 'clean'] },
+  changeSummary: { type: 'string' },
+  newText: { type: 'string' },
+  // one row per question: fixed = changed the artifact for it; argued = kept it as-is and pushed back (note = why).
+  ledger: { type: 'array', items: { type: 'object', required: ['question', 'action'], properties: { question: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'argued'] }, note: { type: 'string' } } } },
+} }
+const MAX_CHAD_ROUNDS = 2
 async function chadPass({ crux, unit, label, phaseName, contentBlock, extraNote }) {
-  const questions = await agent(
-    `${CHAD}\n\nTHE CRUX: ${crux}\n\nThe ${unit} in front of you (${label}):\n${contentBlock}\n\nWalk it top to bottom and fire your dumb questions. Point at specific spans when it helps pin the problem.`,
-    { label: `chad:${label}`, phase: phaseName },
-  )
-  const defended = await agent(
-    `You are the defender. An impatient user (Chad) who only wants the job done looked at ${label} cold and asked these dumb questions:\n\n${questions}\n\nTHE CRUX (the job that must still get done): ${crux}\n` +
-    (extraNote ? `\n${extraNote}\n` : '') +
-    `\nThe current ${unit}:\n${contentBlock}\n\n` +
-    `For each question: if it exposes showing-off -- purple prose, gold-plating, jargon, an invented caveat, self-narration, sounding-smart, or making the user wade before the point -- FIX it. If the span is already earned by the crux, leave it. Produce the version that survives Chad: same job done, but plainer, more direct, faster to the point. Do NOT strip load-bearing substance to please him -- keep every fact and instruction that serves the job; kill only the performance. You get the last word and you own the improved copy.\n` +
-    `Return decision=rewrite with newText (the FULL revised ${unit}) + changeSummary (bullets of the showing-off you stripped), or decision=clean if it already survives Chad untouched. Do not pad -- every kept line must earn its place.`,
-    { label: `defend:${label}`, phase: phaseName, schema: CHAD_SCHEMA },
-  )
-  return { ...defended, questions }
+  let current = contentBlock
+  let finalText = null
+  const rounds = [] // { round, questions, ledger, changeSummary }
+  for (let round = 1; round <= MAX_CHAD_ROUNDS; round++) {
+    // Fresh Chad every round -- he must meet THIS version cold, with no memory of the last round (that is the whole power).
+    const q = await agent(
+      `${CHAD}\n\nTHE CRUX: ${crux}\n\nThe ${unit} in front of you (${label}):\n${current}\n\nWalk it top to bottom and fire your dumb questions -- one per thing that trips you. Point at specific spans. Return an EMPTY list only if nothing trips you at all.`,
+      { label: `chad${round}:${label}`, phase: phaseName, schema: CHAD_Q_SCHEMA },
+    )
+    const questions = (q.questions || []).filter(Boolean)
+    if (!questions.length) { rounds.push({ round, questions: [], ledger: [], changeSummary: '' }); break }
+    const defended = await agent(
+      `You are the defender. An impatient user (Chad) who only wants the job done looked at ${label} cold and asked these dumb questions:\n\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\nTHE CRUX (the job that must still get done): ${crux}\n` +
+      (round === 1 && extraNote ? `\n${extraNote}\n` : '') +
+      `\nThe current ${unit}:\n${current}\n\n` +
+      `For each question: if it exposes showing-off -- purple prose, gold-plating, jargon, an invented caveat, self-narration, sounding-smart, or making the user wade before the point -- FIX it. If the span is genuinely earned by the crux, you may push back and keep it. Produce the version that survives Chad: same job done, but plainer, more direct, faster to the point. Do NOT strip load-bearing substance to please him -- keep every fact and instruction that serves the job; kill only the performance. You get the last word and you own the improved copy.\n` +
+      `Return: decision=rewrite with newText (the FULL revised ${unit}) + changeSummary (bullets of the showing-off you stripped), or decision=clean if it already survives Chad untouched. ALSO return ledger -- one row per question above: action=fixed if you changed the artifact for it, action=argued if you kept it as-is and are pushing back (note = your one-line reason). Do not pad.`,
+      { label: `defend${round}:${label}`, phase: phaseName, schema: DEFEND_SCHEMA },
+    )
+    rounds.push({ round, questions, ledger: defended.ledger || [], changeSummary: defended.changeSummary || '' })
+    if (defended.decision === 'rewrite' && defended.newText) { current = defended.newText; finalText = current }
+    else break // defender held the whole thing as-is; a fresh read would just repeat -- stop.
+  }
+  const questions = rounds.flatMap(r => r.questions)
+  const argued = rounds.flatMap(r => (r.ledger || []).filter(l => l.action === 'argued')) // kept as-is against Chad, across both rounds -- the unresolved set
+  return {
+    decision: finalText ? 'rewrite' : 'clean',
+    newText: finalText,
+    changeSummary: rounds.map(r => r.changeSummary).filter(Boolean).join('\n'),
+    report: { label, asked: questions.length, roundsRun: rounds.length, questions, argued },
+  }
 }
 
 // ---- Phase 0: Clone ----
@@ -90,6 +119,7 @@ log(`crux: ${crux}`)
 
 // ===== Single-text mode: delete rewrite, then Chad on the survivor, straight to judge =====
 let proposals = []
+const chadReports = [] // one per unit Chad passed over -- feeds the end-of-run Chad report
 if (isText) {
   phase('Review')
   const r = await agent(
@@ -101,6 +131,7 @@ if (isText) {
 
   phase('Chad')
   const chad = await chadPass({ crux, unit: 'text', label: '(text)', phaseName: 'Chad', contentBlock: leanText })
+  chadReports.push(chad.report)
   if (chad.decision === 'rewrite' && chad.newText) {
     proposals = [{ id: 'text-0', altitude: 'chad', file: '(text)', action: 'rewrite', target: '(whole text)', why: 'delete + Chad pass', changeSummary: [leanCuts, chad.changeSummary].filter(Boolean).join('\n'), lines: r.linesRemoved || 0, newText: chad.newText, chad: true }]
   } else if (r.decision === 'rewrite') {
@@ -168,6 +199,7 @@ if (isText) {
       .then(c => { chadByFile.set(f.path, { x, c }) })
   }))
   const chadRewrites = [...chadByFile.values()].filter(v => v.c.decision === 'rewrite' && v.c.newText).length
+  for (const v of chadByFile.values()) chadReports.push(v.c.report)
   log(`chad: ${burial.length} burial notes; ${chadRewrites}/${alive.length} survivors rewritten to survive Chad`)
 
   // ===== Merge both lanes into proposals. Chad's rewrite supersedes the delete-lane rewrite of the same file (it was built on top). =====
@@ -189,7 +221,20 @@ if (isText) {
   }
 }
 
-if (!proposals.length) return { cloneRoot, crux, proposalCount: 0, proposals: [], plan: { summary: 'Nothing to cut -- artifact is already lean and survives Chad.', decisions: [], addBackMenu: [] } }
+// ===== Chad report: what the interrogation actually looked like, for the human to see (not just the verdict). =====
+const chadReport = chadReports.length ? (() => {
+  const totalAsked = chadReports.reduce((a, r) => a + (r.asked || 0), 0)
+  const argued = chadReports.flatMap(r => (r.argued || []).map(a => ({ question: a.question, note: a.note || '', where: r.label })))
+  // Highlights = the confidence-relevant ones first: contested (defender pushed back), then fill from the rest of Chad's questions. Capped at 10.
+  const highlights = []
+  const push = (question, tag) => { if (question && highlights.length < 10 && !highlights.some(h => h.question === question)) highlights.push({ question, tag }) }
+  for (const a of argued) push(a.question, `argued @ ${a.where}${a.note ? ': ' + a.note : ''}`)
+  for (const r of chadReports) for (const question of (r.questions || [])) push(question, `@ ${r.label}`)
+  return { totalAsked, filesReviewed: chadReports.length, argued, highlights }
+})() : null
+if (chadReport) log(`chad report: ${chadReport.totalAsked} questions across ${chadReport.filesReviewed}; defender argued against ${chadReport.argued.length}`)
+
+if (!proposals.length) return { cloneRoot, crux, chadReport, proposalCount: 0, proposals: [], plan: { summary: 'Nothing to cut -- artifact is already lean and survives Chad.', decisions: [], addBackMenu: [] } }
 log(`${proposals.length} proposals -> debate`)
 
 // ===== Phase 2: Asymmetric deletion debate. Only CUTS are debated (deletion gets the last word). =====
@@ -237,6 +282,7 @@ const plan = await agent(
 return {
   cloneRoot,
   crux,
+  chadReport,
   proposalCount: proposals.length,
   proposals: debated.map(p => ({ id: p.id, altitude: p.altitude, file: p.file, action: p.action, lines: p.lines, changeSummary: p.changeSummary, newText: p.newText, chad: !!p.chad })),
   plan,
