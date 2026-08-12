@@ -14,7 +14,7 @@ It earned its place: pointed at a 12,356-line skill bundle, it proposed cutting 
 
 ## What's inside
 
-- **`workflows/elon-algorithm.js`** — the workflow. Clone → crux → review (bird's-eye + per-file) → Chad pass → asymmetric debate → cut-by-default judge → plan + ranked add-back menu.
+- **`workflows/elon-algorithm.js`** — the workflow. Clone → crux → review (bird's-eye + per-file) → Chad pass (a fresh Chad re-reads the rewrite, up to 2 rounds) → asymmetric debate → cut-by-default judge → plan + ranked add-back menu + a Chad report (what he asked, what the defender argued against).
 - **`skills/elon-algorithm/`** — the accompanying skill that tells an agent when and how to reach for the workflow (directly, or adapted).
 
 ## Use it
