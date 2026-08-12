@@ -16,7 +16,7 @@ AI output *shows off*: it reaches for the clever word, the metaphor, the caveat 
 
 ## The idea
 
-There is no symptom checklist — no "watch for metaphors, superlatives, hedges." A list of tells overfits to prose and dies on a diagram or a code plan. The detector is Chad's *posture*, not a list, which is why it ports to anything: a comic, a blueprint, a landing page, a thing we haven't imagined yet.
+No symptom list, ever — a checklist of tells ("watch for metaphors, superlatives…") overfits to prose and dies on a diagram or a code plan. The detector is Chad's *posture*, not a list, which is why it ports to anything: a comic, a blueprint, a landing page, a thing we haven't imagined yet.
 
 Chad gets exactly one piece of context — the **crux**, the job whoever's on the other end came to get done — and meets the artifact cold, like anyone who lands on it with a job to do. Cleverness for its own sake doesn't land on him. He doesn't rewrite; he asks sharp, dumb questions. A defender then ties each span to the crux or remakes it plainer, and owns the improved copy.
 
@@ -26,10 +26,10 @@ It **clones** the artifact first (the original is never touched), then runs four
 
 - **Crux** — pin the job to be done in one or two plain sentences, in the words of whoever the artifact is for. This is Chad's only context and the yardstick everything is measured against.
 - **Bird's-eye pass** — Chad from altitude, asking one question of the whole artifact: does it make me wade before it gets to the job? Names the files that bury the point and what to move up or cut as ceremony.
-- **The Chad pass** — Chad meets each part cold and asks the dumbest honest questions he has. The defender ties each span to the crux, or remakes it — plainer, or restructured to reach the point faster — and gets the last word (Chad is doing it a service; the defender owns the copy). Then it runs **again**: a *fresh* Chad, with no memory of the first round, cold-reads the rewrite, and the defender gets one more pass. This second round is where most residue dies — the rewrite is a new generation, so it can smuggle in fresh showing-off the first Chad never saw. Capped at **two rounds** so the polish can't loop forever; anything the defender still argues against in that final pass is surfaced to the human, not chased. Each round, Chad also gives one blunt **bird's-eye conclusion** on the whole thing — too long, too busy, wrong shape, or does it land.
+- **The Chad pass** — Chad meets the artifact cold and asks the dumbest honest questions he has (prompt below). The defender ties each span to the crux, or remakes it — cut, plainer, or restructured to reach the point faster. The defender gets the last word: Chad is doing it a service, and the defender owns the improved copy. Then it runs **again**: a *fresh* Chad — no memory of the first round — cold-reads the rewrite, and the defender gets one more pass to fix whatever he's still unimpressed by. This second round is where most residue dies — the rewrite is a new generation, so it can smuggle in fresh showing-off the first Chad never saw. Capped at **two rounds** so the polish can't loop forever; anything the defender still argues against in that final pass is surfaced to the human, not chased. Each round, after the questions, Chad also steps back and gives one blunt **bird's-eye conclusion** on the whole thing — is it too long, too busy, in the wrong shape, or does it land — the overall take that local questions miss.
 - **The judge** — one coherent knife. Accepts each plainer rewrite unless it dropped something load-bearing or isn't actually plainer. Returns the plan, the revised artifact, and a **ranked add-back menu** (least-confident changes first, so the human restores any voice Chad sanded off).
 
-Alongside the plan comes the **Chad report**: how many questions Chad asked, the sharpest 5–10, which ones the defender *argued* against (kept as-is, with its reason) versus fixed, and Chad's bird's-eye conclusion each round. It shows the work, not just the verdict, so you can see where Chad got overruled and whether you agree.
+**The Chad report** — alongside the plan, surface what the interrogation looked like: how many questions Chad asked in total, the sharpest 5–10, which ones the defender *argued* against (kept as-is, with its reason) versus fixed, and Chad's blunt bird's-eye conclusion from each round (his overall take on the whole thing). This is for the human's confidence — it shows the work, not just the verdict, so you can see where Chad got overruled and whether you agree.
 
 The output is a **plan, not a blind rewrite** — you review it and apply it as a diff/PR, staying in the loop where the human belongs.
 
@@ -65,7 +65,7 @@ The phases above are the *spirit* of the review, not a tool. How you run them de
 
 ### Small artifact (a single file, or a couple) — run it directly
 
-When the target is one file or a small handful, you **don't need the workflow**. Pin the crux, then run the `clone → crux → Chad pass → judge` shape with sub-agents directly: a fresh Chad reads the current version and fires dumb questions, a defender rewrites it plainer and owns the copy, a second fresh Chad re-reads that rewrite (two rounds), then judge the result. Chad gets his context from the crux alone — don't feed him the backstory, that's the whole point.
+When the target is one file or a small handful, you **don't need the workflow**. Pin the crux, then run the `clone → crux → Chad pass → judge` shape with sub-agents directly: a fresh Chad reads the current version and fires dumb questions, a defender rewrites it plainer and owns the copy, a second fresh Chad re-reads that rewrite (two rounds), then judge the result. Chad gets his context from the crux alone — don't feed him the backstory, that's the whole point. The *structural* altitude still applies: **the failure mode is treating the existing structure as fixed and only trimming sentences inside it — a 1% pass, not a Chad pass** — so let the defender restructure to reach the point faster, not just flatten words.
 
 This is the lighter, faster default for most "strip the showing-off from this one file/prompt" asks.
 
