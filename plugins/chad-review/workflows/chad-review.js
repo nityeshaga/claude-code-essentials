@@ -11,7 +11,15 @@ export const meta = {
 }
 
 // args (delivered as a JSON string by the tool): { path, crux?, cloneTo? } | { text, crux? }
-const A = (() => { try { return typeof args === 'string' ? JSON.parse(args) : (args || {}) } catch (e) { throw new Error('args not valid JSON: ' + e.message) } })()
+// Forgiving: a weak caller may pass a bare path instead of JSON. A single pathy token -> {path}; prose -> {text}.
+const A = (() => {
+  if (args && typeof args === 'object') return args
+  const s = String(args || '').trim()
+  if (!s) return {}
+  try { return JSON.parse(s) } catch (e) {
+    return (!/\s/.test(s) && /[\/.]/.test(s)) ? { path: s } : { text: s }
+  }
+})()
 const base = p => (p ? String(p).split('/').pop() : '?')
 
 // Chad's identity. Kept artifact-general on purpose (no writing-only words) so it ports to a diagram, a code plan, a landing page.
