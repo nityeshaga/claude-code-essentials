@@ -1,7 +1,7 @@
 {
   "name": "elon-algorithm",
-  "version": "0.2.1",
-  "description": "Run Elon's algorithm (question every requirement \u2192 delete \u2192 simplify) on any artifact to cut AI slop and make code, prompts, skills, or docs leaner and denser. Ships a reusable workflow + an accompanying skill.",
+  "version": "0.3.0",
+  "description": "Run Elon's algorithm (question every requirement \u2192 delete \u2192 simplify) on any artifact to cut AI slop and make code, prompts, skills, or docs leaner and plainer. Two axes: delete what isn't load-bearing, and Chad \u2014 strip the showing-off so the artifact survives an impatient user who only cares about the job. Ships a reusable workflow + an accompanying skill.",
   "author": {
     "name": "Nityesh Agarwal"
   },
