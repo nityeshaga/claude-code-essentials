@@ -41,7 +41,7 @@ You are unimpressed by cleverness for its own sake -- a nice metaphor, "the most
 // the current version and the defender updates it. Round 2's Chad reads round 1's rewrite (a new generation can
 // smuggle in fresh slop), and the defender gets one last pass to fix whatever Chad is still unimpressed by.
 // Capped at 2 rounds so the polish loop can't run forever; whatever the defender argues against in the final pass goes to the human.
-const CHAD_Q_SCHEMA = { type: 'object', required: ['questions'], properties: { questions: { type: 'array', items: { type: 'string' } } } }
+const CHAD_Q_SCHEMA = { type: 'object', required: ['questions', 'birdsEye'], properties: { questions: { type: 'array', items: { type: 'string' } }, birdsEye: { type: 'string' } } }
 const DEFEND_SCHEMA = { type: 'object', required: ['decision'], properties: {
   decision: { type: 'string', enum: ['rewrite', 'clean'] },
   changeSummary: { type: 'string' },
@@ -57,11 +57,12 @@ async function chadPass({ crux, unit, label, phaseName, contentBlock, extraNote 
   for (let round = 1; round <= MAX_CHAD_ROUNDS; round++) {
     // Fresh Chad every round -- he must meet THIS version cold, with no memory of the last round (that is the whole power).
     const q = await agent(
-      `${CHAD}\n\nTHE CRUX: ${crux}\n\nThe ${unit} in front of you (${label}):\n${current}\n\nWalk it top to bottom and fire your dumb questions -- one per thing that trips you. Point at specific spans. Return an EMPTY list only if nothing trips you at all.`,
+      `${CHAD}\n\nTHE CRUX: ${crux}\n\nThe ${unit} in front of you (${label}):\n${current}\n\nWalk it top to bottom and fire your dumb questions -- one per thing that trips you. Point at specific spans. Return an EMPTY list only if nothing trips you at all.\n\nThen step back from the individual questions and give ONE blunt bird's-eye conclusion (birdsEye) on the whole thing, as the impatient user: overall, is it too long, too busy, doing more than the job needs, in the wrong shape -- or does it land? One or two sentences, no hedging.`,
       { label: `chad${round}:${label}`, phase: phaseName, schema: CHAD_Q_SCHEMA },
     )
     const questions = (q.questions || []).filter(Boolean)
-    if (!questions.length) { rounds.push({ round, questions: [], ledger: [], changeSummary: '' }); break }
+    const birdsEye = q.birdsEye || ''
+    if (!questions.length) { rounds.push({ round, questions: [], ledger: [], changeSummary: '', birdsEye }); break }
     const defended = await agent(
       `You are the defender. An impatient user (Chad) who only wants the job done looked at ${label} cold and asked these dumb questions:\n\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\nTHE CRUX (the job that must still get done): ${crux}\n` +
       (round === 1 && extraNote ? `\n${extraNote}\n` : '') +
@@ -70,17 +71,18 @@ async function chadPass({ crux, unit, label, phaseName, contentBlock, extraNote 
       `Return: decision=rewrite with newText (the FULL revised ${unit}) + changeSummary (bullets of the showing-off you stripped), or decision=clean if it already survives Chad untouched. ALSO return ledger -- one row per question above: action=fixed if you changed the artifact for it, action=argued if you kept it as-is and are pushing back (note = your one-line reason). Do not pad.`,
       { label: `defend${round}:${label}`, phase: phaseName, schema: DEFEND_SCHEMA },
     )
-    rounds.push({ round, questions, ledger: defended.ledger || [], changeSummary: defended.changeSummary || '' })
+    rounds.push({ round, questions, ledger: defended.ledger || [], changeSummary: defended.changeSummary || '', birdsEye })
     if (defended.decision === 'rewrite' && defended.newText) { current = defended.newText; finalText = current }
     else break // defender held the whole thing as-is; a fresh read would just repeat -- stop.
   }
   const questions = rounds.flatMap(r => r.questions)
   const argued = rounds.flatMap(r => (r.ledger || []).filter(l => l.action === 'argued')) // kept as-is against Chad, across both rounds -- the unresolved set
+  const conclusions = rounds.filter(r => r.birdsEye).map(r => ({ round: r.round, take: r.birdsEye })) // Chad's bird's-eye conclusion each round
   return {
     decision: finalText ? 'rewrite' : 'clean',
     newText: finalText,
     changeSummary: rounds.map(r => r.changeSummary).filter(Boolean).join('\n'),
-    report: { label, asked: questions.length, roundsRun: rounds.length, questions, argued },
+    report: { label, asked: questions.length, roundsRun: rounds.length, questions, argued, conclusions },
   }
 }
 
@@ -225,14 +227,16 @@ if (isText) {
 const chadReport = chadReports.length ? (() => {
   const totalAsked = chadReports.reduce((a, r) => a + (r.asked || 0), 0)
   const argued = chadReports.flatMap(r => (r.argued || []).map(a => ({ question: a.question, note: a.note || '', where: r.label })))
+  // Chad's bird's-eye conclusion each round -- his blunt overall take on the whole thing (too long / too busy / wrong shape / lands).
+  const conclusions = chadReports.flatMap(r => (r.conclusions || []).map(c => ({ where: r.label, round: c.round, take: c.take })))
   // Highlights = the confidence-relevant ones first: contested (defender pushed back), then fill from the rest of Chad's questions. Capped at 10.
   const highlights = []
   const push = (question, tag) => { if (question && highlights.length < 10 && !highlights.some(h => h.question === question)) highlights.push({ question, tag }) }
   for (const a of argued) push(a.question, `argued @ ${a.where}${a.note ? ': ' + a.note : ''}`)
   for (const r of chadReports) for (const question of (r.questions || [])) push(question, `@ ${r.label}`)
-  return { totalAsked, filesReviewed: chadReports.length, argued, highlights }
+  return { totalAsked, filesReviewed: chadReports.length, conclusions, argued, highlights }
 })() : null
-if (chadReport) log(`chad report: ${chadReport.totalAsked} questions across ${chadReport.filesReviewed}; defender argued against ${chadReport.argued.length}`)
+if (chadReport) log(`chad report: ${chadReport.totalAsked} questions across ${chadReport.filesReviewed}; defender argued against ${chadReport.argued.length}; ${chadReport.conclusions.length} bird's-eye conclusions`)
 
 if (!proposals.length) return { cloneRoot, crux, chadReport, proposalCount: 0, proposals: [], plan: { summary: 'Nothing to cut -- artifact is already lean and survives Chad.', decisions: [], addBackMenu: [] } }
 log(`${proposals.length} proposals -> debate`)
