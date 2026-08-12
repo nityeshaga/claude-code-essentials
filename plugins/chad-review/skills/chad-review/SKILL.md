@@ -3,22 +3,27 @@ name: chad-review
 description: >-
   Strip the showing-off from any artifact — code, a prompt, a skill, a doc, prose, a landing page, a
   diagram — by making it survive Chad: an impatient user who only cares about the job and refuses to be
-  impressed. Chad meets the artifact cold and asks the dumbest honest questions he has; a defender ties
-  each span to the job or rewrites it plainer; a fresh Chad re-reads the rewrite. Returns a reviewable
-  plan of plainer rewrites, never touching the original. Use whenever something is too clever, too
-  flowery, over-explained, self-narrating, or padded with caveats nobody asked for. Triggers: "cut the
-  showing-off", "make this plainer", "this is too clever / too flowery", "strip the fluff", "run Chad on X".
+  impressed. Yes Chad from the "Chad vs Virgin" memes.
+  
+  Chad meets the artifact cold and asks the dumbest honest questions he has; a defender ties
+  each span to the job or rewrites it plainer. This goes for two rounds. Use to remove instances of 
+  over-smartness, purple prose, gold plating, caveat padding, beating around the bush, over-explained, self-narrating, 
+  or padded with pushbacks nobody asked for. Chad is the bullshit detector for AI.
+  
+  Triggers: "cut the showing-off", "this is too clever / too flowery", "run Chad review on X".
 ---
 
 # Chad Review — strip the showing-off, keep the job
 
-AI output *shows off*: it reaches for the clever word, the metaphor, the caveat nobody needed, the little bit of self-narration — because it doesn't trust the material to be interesting on its own. Chad is the antidote. He's the guy who only cares about getting his job done and is impossible to impress, so anything on the page purely to look smart falls away. This skill runs him on a clone and hands you a plan to review.
+SOTA AI model *shows off*: it reaches for the clever word, the metaphor, the caveat nobody needed, the little bit of self-narration — because it doesn't trust the material to be interesting on its own. Chad is the antidote. He's the guy from the memes who only cares about getting his job done and is impossible to impress, so anything on the page purely to look smart falls away. This skill runs him on a clone and hands you a plan to review.
 
 ## The idea
 
-No symptom list, ever — a checklist of tells ("watch for metaphors, superlatives…") overfits to prose and dies on a diagram or a code plan. The detector is Chad's *posture*, not a list, which is why it ports to anything: a comic, a blueprint, a landing page, a thing we haven't imagined yet.
+Chad is the genius bullshit detector who detects bullshit by asking dumb questions shamelessly.
 
 Chad gets exactly one piece of context — the **crux**, the job whoever's on the other end came to get done — and meets the artifact cold, like anyone who lands on it with a job to do. Cleverness for its own sake doesn't land on him. He doesn't rewrite; he asks sharp, dumb questions. A defender then ties each span to the crux or remakes it plainer, and owns the improved copy.
+
+The bullshit detector is Chad's *posture*, not a list, which is why it ports to anything: a comic, a blueprint, a landing page, a thing we haven't imagined yet.
 
 ## How the workflow works
 
@@ -26,7 +31,7 @@ It **clones** the artifact first (the original is never touched), then runs four
 
 - **Crux** — pin the job to be done in one or two plain sentences, in the words of whoever the artifact is for. This is Chad's only context and the yardstick everything is measured against.
 - **Bird's-eye pass** — Chad from altitude, asking one question of the whole artifact: does it make me wade before it gets to the job? Names the files that bury the point and what to move up or cut as ceremony.
-- **The Chad pass** — Chad meets the artifact cold and asks the dumbest honest questions he has (prompt below). The defender ties each span to the crux, or remakes it — cut, plainer, or restructured to reach the point faster. The defender gets the last word: Chad is doing it a service, and the defender owns the improved copy. Then it runs **again**: a *fresh* Chad — no memory of the first round — cold-reads the rewrite, and the defender gets one more pass to fix whatever he's still unimpressed by. This second round is where most residue dies — the rewrite is a new generation, so it can smuggle in fresh showing-off the first Chad never saw. Capped at **two rounds** so the polish can't loop forever; anything the defender still argues against in that final pass is surfaced to the human, not chased. Each round, after the questions, Chad also steps back and gives one blunt **bird's-eye conclusion** on the whole thing — is it too long, too busy, in the wrong shape, or does it land — the overall take that local questions miss.
+- **The Chad pass** — Chad meets the artifact cold and asks the dumbest honest questions he has (prompt below). The defender ties each span to the crux, or remakes it — cut, plainer, or restructured to reach the point faster. The defender gets the last word: Chad is doing it a service, and the defender owns the improved copy. Then it runs **again**: a *fresh* Chad agent — no memory of the first round — cold-reads the rewrite, and the defender gets one more pass to fix whatever he's still unimpressed by. This second round is where most residue dies — the rewrite is a new generation, so it can smuggle in fresh showing-off the first Chad never saw. Capped at **two rounds** so the polish can't loop forever; anything the defender still argues against in that final pass is surfaced to the human, not chased. Each round, after the questions, Chad also steps back and gives one blunt **bird's-eye conclusion** on the whole thing — is it too long, too busy, in the wrong shape, or does it land — the overall take that local questions might miss.
 - **The judge** — one coherent knife. Accepts each plainer rewrite unless it dropped something load-bearing or isn't actually plainer. Returns the plan, the revised artifact, and a **ranked add-back menu** (least-confident changes first, so the human restores any voice Chad sanded off).
 
 **The Chad report** — alongside the plan, surface what the interrogation looked like: how many questions Chad asked in total, the sharpest 5–10, which ones the defender *argued* against (kept as-is, with its reason) versus fixed, and Chad's blunt bird's-eye conclusion from each round (his overall take on the whole thing). This is for the human's confidence — it shows the work, not just the verdict, so you can see where Chad got overruled and whether you agree.
@@ -65,7 +70,7 @@ The phases above are the *spirit* of the review, not a tool. How you run them de
 
 ### Small artifact (a single file, or a couple) — run it directly
 
-When the target is one file or a small handful, you **don't need the workflow**. Pin the crux, then run the `clone → crux → Chad pass → judge` shape with sub-agents directly: a fresh Chad reads the current version and fires dumb questions, a defender rewrites it plainer and owns the copy, a second fresh Chad re-reads that rewrite (two rounds), then judge the result. Chad gets his context from the crux alone — don't feed him the backstory, that's the whole point. The *structural* altitude still applies: **the failure mode is treating the existing structure as fixed and only trimming sentences inside it — a 1% pass, not a Chad pass** — so let the defender restructure to reach the point faster, not just flatten words.
+When the target is one file or a small handful, you **don't need the workflow**. Identify the crux, then run the `clone → crux → Chad pass → judge` shape with sub-agents directly: a fresh Chad reads the current version and fires dumb questions, a defender rewrites it plainer and owns the copy, a second fresh Chad re-reads that rewrite (two rounds), then judge the result. Chad gets his context from the crux alone — don't feed him the backstory. The *structural* altitude still applies: **the failure mode is treating the existing structure as fixed and only trimming sentences inside it — a 1% pass, not a Chad pass** — so let the defender restructure to reach the point faster, not just flatten words.
 
 This is the lighter, faster default for most "strip the showing-off from this one file/prompt" asks.
 
