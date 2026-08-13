@@ -1,16 +1,17 @@
 export const meta = {
   name: 'chad-review',
-  description: "Strip the showing-off from a CLONE of an artifact. Triage picks every USER-FACING file and image (skipping behind-the-scenes plumbing), then Chad -- an impatient user who only cares about the job and refuses to be impressed -- meets each cold and asks the dumbest honest questions he has. On text a defender rewrites it plainer and a FRESH Chad re-reads (up to 2 rounds); on images (Chad is multimodal) he critiques it part by part and a defender remakes it directly if it has the tools, else returns a plan to update it. A single judge accepts the plainer copy and returns a review-plan + image findings + a ranked add-back menu for any voice Chad sanded off. Original is never touched.",
+  description: "Strip the showing-off from a CLONE of an artifact. Triage picks every USER-FACING file and image (skipping behind-the-scenes plumbing), then Chad -- an impatient user who only cares about the job and refuses to be impressed -- meets each cold and asks the dumbest honest questions he has. On text it's a real debate: the SAME Chad keeps going after the defender's rewrite, round after round (default 3, caller-set via args.rounds); on images (Chad is multimodal) he critiques it part by part and a defender remakes it directly if it has the tools, else returns a plan to update it. A single judge accepts the plainer copy and returns a review-plan + a debate table of every question and what the defender did to it + image findings + a ranked add-back menu for any voice Chad sanded off. Original is never touched.",
   whenToUse: 'When you want to strip the showing-off from an artifact -- purple prose, gold-plating, invented caveats, self-narration, sounding-smart, decorative images -- across every user-facing file and get a reviewable plan back.',
   phases: [
     { title: 'Clone', detail: 'copy the artifact so the swarm works on the clone; list every file' },
     { title: 'Crux', detail: 'pin the job-to-be-done in one or two plain sentences (Chad\'s yardstick)' },
-    { title: 'Chad', detail: 'triage user-facing files, then Chad debates each -- text: rewrite plainer over 2 rounds; image: look + verdict' },
+    { title: 'Chad', detail: 'triage user-facing files, then the same Chad debates each over N rounds (default 3); image: look + verdict' },
     { title: 'Judge', detail: 'single judge accepts the plainer copy; returns plan + image findings + ranked add-back menu' },
   ],
 }
 
-// args (delivered as a JSON string by the tool): { path, crux?, cloneTo? } | { text, crux? }
+// args (delivered as a JSON string by the tool): { path, crux?, cloneTo?, rounds? } | { text, crux?, rounds? }
+// rounds = how many debate rounds Chad runs per unit (default 3).
 // Forgiving: a weak caller may pass a bare path instead of JSON. A single pathy token -> {path}; prose -> {text}.
 const A = (() => {
   if (args && typeof args === 'object') return args
@@ -21,6 +22,8 @@ const A = (() => {
   }
 })()
 const base = p => (p ? String(p).split('/').pop() : '?')
+// How many debate rounds Chad runs per unit. Caller-set via args.rounds; default 3.
+const MAX_CHAD_ROUNDS = (() => { const n = Math.floor(Number(A.rounds)); return n > 0 ? n : 3 })()
 
 // Chad's identity. Kept artifact-general on purpose (no writing-only words) so it ports to a diagram, a code plan, a landing page.
 const CHAD = `You are Chad -- the guy from the memes. You ask dumb, simple questions out loud without a flicker of shame, because looking dumb costs you nothing and getting to the point is everything. The other guy performs intelligence and stays paralyzed; you just say "wait, why is this here?" and win.
@@ -35,10 +38,12 @@ Ask whatever dumb question the moment calls for -- anything a confused, impatien
 - quote the exact span that lost you and ask about THOSE words.
 You are unimpressed by cleverness for its own sake -- a nice metaphor, "the most X", a careful caveat: none of it lands if it doesn't move your job forward. You never pretend to understand something to look smart. You don't do taste debates ("it adds context" / "it sets the tone" -- you're the one it's for, and it didn't). You don't rewrite; you ask sharp, pointed, dumb questions.`
 
-// A Chad pass over one unit of content, up to 2 rounds. Each round: a FRESH, amnesiac Chad cold-reads the current
-// version and the defender updates it. Round 2's Chad reads round 1's rewrite (a new generation can smuggle in fresh
-// slop), and the defender gets one last pass to fix whatever Chad is still unimpressed by. Capped at 2 rounds so the
-// polish loop can't run forever; whatever the defender argues against in the final pass goes to the human.
+// A Chad pass over one unit of content -- a real debate over MAX_CHAD_ROUNDS rounds. It's the SAME Chad the whole way:
+// round 1 he cold-reads and fires his dumb questions, the defender answers (rewrite or push-back), and every round
+// after that Chad is handed the debate so far -- his own prior questions and exactly what the defender did with each --
+// and picks up where he left off: did the defender really answer or just dodge, plus whatever the rewrite newly trips on.
+// Capped at MAX_CHAD_ROUNDS (default 3) so the debate can't run forever; whatever the defender still argues against in the
+// final round goes to the human.
 const CHAD_Q_SCHEMA = { type: 'object', required: ['questions', 'birdsEye'], properties: { questions: { type: 'array', items: { type: 'string' } }, birdsEye: { type: 'string' } } }
 const DEFEND_SCHEMA = { type: 'object', required: ['decision'], properties: {
   decision: { type: 'string', enum: ['rewrite', 'clean'] },
@@ -47,40 +52,52 @@ const DEFEND_SCHEMA = { type: 'object', required: ['decision'], properties: {
   // one row per question: fixed = changed the artifact for it; argued = kept it as-is and pushed back (note = why).
   ledger: { type: 'array', items: { type: 'object', required: ['question', 'action'], properties: { question: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'argued'] }, note: { type: 'string' } } } },
 } }
-const MAX_CHAD_ROUNDS = 2
 async function chadPass({ crux, unit, label, phaseName, contentBlock, extraNote }) {
   let current = contentBlock
   let finalText = null
   const rounds = [] // { round, questions, ledger, changeSummary, birdsEye }
+  let transcript = '' // the running debate, replayed to the SAME Chad so he continues after hearing the defender's take
   for (let round = 1; round <= MAX_CHAD_ROUNDS; round++) {
-    // Fresh Chad every round -- he must meet THIS version cold, with no memory of the last round (that is the whole power).
+    // Same Chad throughout. Round 1 he meets it cold; every round after, he reads the debate so far and keeps going.
+    const opener = round === 1
+      ? `The ${unit} in front of you (${label}):\n${current}\n\nWalk it top to bottom and fire your dumb questions -- one per thing that trips you. Point at specific spans. Return an EMPTY list only if nothing trips you at all.`
+      : `You are the SAME Chad, still in the room -- round ${round}. The debate so far:\n\n${transcript}\nThe defender just revised it. Here is the ${unit} as it stands now (${label}):\n${current}\n\nPick up the debate where you left off: did the defender actually answer your earlier questions or just dodge/hand-wave? Push back where he waved you off, and fire fresh dumb questions at anything the rewrite still does or newly introduced. Don't re-ask what he genuinely resolved. Return an EMPTY list only if you're finally satisfied.`
     const q = await agent(
-      `${CHAD}\n\nTHE CRUX: ${crux}\n\nThe ${unit} in front of you (${label}):\n${current}\n\nWalk it top to bottom and fire your dumb questions -- one per thing that trips you. Point at specific spans. Return an EMPTY list only if nothing trips you at all.\n\nThen step back from the individual questions and give ONE blunt bird's-eye conclusion (birdsEye) on the whole thing, as the impatient user: overall, is it too long, too busy, doing more than the job needs, in the wrong shape -- or does it land? One or two sentences, no hedging.`,
+      `${CHAD}\n\nTHE CRUX: ${crux}\n\n${opener}\n\nThen step back from the individual questions and give ONE blunt bird's-eye conclusion (birdsEye) on the whole thing as it stands now, as the impatient user: overall, is it too long, too busy, doing more than the job needs, in the wrong shape -- or does it land? One or two sentences, no hedging.`,
       { label: `chad${round}:${label}`, phase: phaseName, schema: CHAD_Q_SCHEMA },
     )
     const questions = (q.questions || []).filter(Boolean)
     const birdsEye = q.birdsEye || ''
     if (!questions.length) { rounds.push({ round, questions: [], ledger: [], changeSummary: '', birdsEye }); break }
     const defended = await agent(
-      `You are the defender. An impatient user (Chad) who only wants the job done looked at ${label} cold and asked these dumb questions:\n\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\nTHE CRUX (the job that must still get done): ${crux}\n` +
+      `You are the defender, in an ongoing debate with an impatient user (Chad) who only wants the job done. This is round ${round}. He just asked:\n\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\nTHE CRUX (the job that must still get done): ${crux}\n` +
       (round === 1 && extraNote ? `\n${extraNote}\n` : '') +
+      (round > 1 && transcript ? `\nThe debate so far (stay consistent with what you already conceded or argued):\n${transcript}\n` : '') +
       `\nThe current ${unit}:\n${current}\n\n` +
       `For each question: if it exposes showing-off -- purple prose, gold-plating, jargon, an invented caveat, self-narration, sounding-smart, or making the user wade before the point -- FIX it. If the span is genuinely earned by the crux, you may push back and keep it. Produce the version that survives Chad: same job done, but plainer, more direct, faster to the point. Do NOT strip load-bearing substance to please him -- keep every fact and instruction that serves the job; kill only the performance. You get the last word and you own the improved copy.\n` +
       `Return: decision=rewrite with newText (the FULL revised ${unit}) + changeSummary (bullets of the showing-off you stripped), or decision=clean if it already survives Chad untouched. ALSO return ledger -- one row per question above: action=fixed if you changed the artifact for it, action=argued if you kept it as-is and are pushing back (note = your one-line reason). Do not pad.`,
       { label: `defend${round}:${label}`, phase: phaseName, schema: DEFEND_SCHEMA },
     )
     rounds.push({ round, questions, ledger: defended.ledger || [], changeSummary: defended.changeSummary || '', birdsEye })
+    // Extend the transcript so the next round's Chad (the same guy) sees exactly what happened to each of his questions.
+    transcript += `--- ROUND ${round} ---\nChad asked:\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n` +
+      `Chad's bird's-eye: ${birdsEye || '(none)'}\n` +
+      `Defender ${defended.decision === 'rewrite' && defended.newText ? 'rewrote it' : 'kept it as-is'}.\n` +
+      (defended.changeSummary ? `What the defender changed:\n${defended.changeSummary}\n` : '') +
+      `Per-question outcome:\n${(defended.ledger || []).map(l => `- "${l.question}" -> ${l.action}${l.note ? ': ' + l.note : ''}`).join('\n') || '(none)'}\n\n`
     if (defended.decision === 'rewrite' && defended.newText) { current = defended.newText; finalText = current }
-    else break // defender held the whole thing as-is; a fresh read would just repeat -- stop.
+    else break // defender held the whole thing as-is; nothing changed for Chad to react to -- stop.
   }
   const questions = rounds.flatMap(r => r.questions)
-  const argued = rounds.flatMap(r => (r.ledger || []).filter(l => l.action === 'argued')) // kept as-is against Chad, across both rounds -- the unresolved set
+  const argued = rounds.flatMap(r => (r.ledger || []).filter(l => l.action === 'argued')) // kept as-is against Chad, across all rounds -- the unresolved set
   const conclusions = rounds.filter(r => r.birdsEye).map(r => ({ round: r.round, take: r.birdsEye })) // Chad's bird's-eye conclusion each round
+  // Per-round ledger, kept so the end-of-run debate table can show every question and what the defender did to it.
+  const roundLog = rounds.map(r => ({ round: r.round, ledger: r.ledger || [], questions: r.questions }))
   return {
     decision: finalText ? 'rewrite' : 'clean',
     newText: finalText,
     changeSummary: rounds.map(r => r.changeSummary).filter(Boolean).join('\n'),
-    report: { label, asked: questions.length, roundsRun: rounds.length, questions, argued, conclusions },
+    report: { label, asked: questions.length, roundsRun: rounds.length, questions, argued, conclusions, roundLog },
   }
 }
 
@@ -222,12 +239,26 @@ const chadReport = chadReports.length ? (() => {
 })() : null
 if (chadReport) log(`chad report: ${chadReport.totalAsked} questions across ${chadReport.filesReviewed}; defender argued against ${chadReport.argued.length}; ${chadReport.conclusions.length} bird's-eye conclusions`)
 
-if (!proposals.length && !imageFindings.length) return { cloneRoot, crux, chadReport, proposalCount: 0, proposals: [], imageFindings: [], plan: { summary: 'Nothing to strip -- artifact already survives Chad.', decisions: [], addBackMenu: [] } }
+// ---- The debate table: every question Chad asked in each round and what the defender did to it. One row per question. ----
+// The caller renders this as a table when the run completes (files with >1 unit are namespaced by label).
+const multiUnit = chadReports.length > 1
+const debateTable = chadReports.flatMap(r => (r.roundLog || []).flatMap(rd =>
+  (rd.ledger && rd.ledger.length ? rd.ledger : (rd.questions || []).map(q => ({ question: q, action: '', note: '' }))).map(l => ({
+    file: multiUnit ? r.label : undefined,
+    round: rd.round,
+    question: l.question,
+    defenderDid: l.action === 'fixed' ? 'fixed' : l.action === 'argued' ? 'argued (kept)' : 'answered',
+    note: l.note || '',
+  })),
+))
+if (debateTable.length) log(`debate table: ${debateTable.length} question rows across ${MAX_CHAD_ROUNDS} max rounds`)
+
+if (!proposals.length && !imageFindings.length) return { cloneRoot, crux, chadReport, debateTable, proposalCount: 0, proposals: [], imageFindings: [], plan: { summary: 'Nothing to strip -- artifact already survives Chad.', decisions: [], addBackMenu: [] } }
 
 // Text rewrites go to the judge; image findings are Chad's verdicts and stand on their own.
 if (!proposals.length) {
   log(`0 rewrites; ${imageFindings.length} image finding(s)`)
-  return { cloneRoot, crux, chadReport, proposalCount: 0, proposals: [], imageFindings, plan: { summary: `No text rewrites survived Chad; ${imageFindings.length} user-facing image(s) flagged (see imageFindings).`, decisions: [], addBackMenu: [] } }
+  return { cloneRoot, crux, chadReport, debateTable, proposalCount: 0, proposals: [], imageFindings, plan: { summary: `No text rewrites survived Chad; ${imageFindings.length} user-facing image(s) flagged (see imageFindings).`, decisions: [], addBackMenu: [] } }
 }
 log(`${proposals.length} rewrites -> judge; ${imageFindings.length} image finding(s)`)
 
@@ -255,6 +286,7 @@ return {
   cloneRoot,
   crux,
   chadReport,
+  debateTable,
   proposalCount: proposals.length,
   proposals: proposals.map(p => ({ id: p.id, file: p.file, changeSummary: p.changeSummary, newText: p.newText })),
   imageFindings,

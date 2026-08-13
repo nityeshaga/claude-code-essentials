@@ -10,7 +10,7 @@ AI output pads the job with clever words, metaphors, and caveats nobody needed â
 
 <img src="assets/chad.png" width="170" align="right" alt="Chad. Yes, that Chad.">
 
-He reads your file knowing only the job it's there to do, and asks the dumb questions: "why is this here?", "why say it this fancy way?". Anything that's only there to sound smart gets rewritten plainer; anything doing real work stays. The rewrite is itself AI-written, so it can pick up new showing-off of its own â€” a second Chad, reading fresh, catches that before it reaches you.
+He reads your file knowing only the job it's there to do, and asks the dumb questions: "why is this here?", "why say it this fancy way?". Anything that's only there to sound smart gets rewritten plainer; anything doing real work stays. Then it's a real debate: the same Chad hears what the defender did and keeps pushing, round after round (default 3), until the showing-off is gone or he's out of questions.
 
 ## Install
 
