@@ -5,10 +5,12 @@ description: >-
   diagram — by making it survive Chad: its intended audience with the personality of the guy from the
   "Chad vs Virgin" memes, who only cares about the job and refuses to be impressed.
 
-  Chad meets the artifact cold and leaves the dumbest honest feedback comments he has, always ending
-  with a bird's-eye comment on the whole thing; a defender who treats him as an asset addresses every
-  comment — fixes the artifact or rejects the comment with a reason — and the same Chad re-reviews,
-  round after round (default 3). Whatever they can't settle comes to you as unresolved tension.
+  Chad meets the artifact cold the way a real user does — the whole bundle first, walked in reading
+  order (so cross-file bullshit gets caught: the same thing told in three files, files that contradict
+  each other), then each file on its own — and leaves the dumbest honest feedback comments he has,
+  always ending with a bird's-eye comment on the whole thing; a defender who treats him as an asset
+  addresses every comment — edits the clone or rejects the comment with a reason — and the same Chad
+  re-reviews, round after round (default 3). Whatever they can't settle comes to you as unresolved tension.
   Use to remove over-smartness, purple prose, gold plating, caveat padding, beating around the bush,
   over-explaining, self-narration, or padded pushbacks nobody asked for. Chad is the bullshit detector for AI.
 
@@ -27,14 +29,21 @@ SOTA AI models *show off*: they reach for the clever word, the metaphor, the cav
 
 ## The loop
 
-That's the whole mechanism — one loop per reviewed unit (a text file or an image; Chad is multimodal):
+That's the whole mechanism — one loop per reviewed unit:
 
 1. **Chad reviews** and leaves his comments, bird's-eye last. No comments at all = it lands, done.
-2. **The defender addresses every comment** — one ledger row each: `fixed` (updated the artifact) or `rejected` (kept it; note = the reason, addressed to Chad).
-3. **The same Chad re-reviews** the new version plus the reasons: checks fixes actually land, drops rejected comments whose reason holds, presses the ones that don't, and comments on anything new.
+2. **The defender addresses every comment** — one ledger row each: `fixed` (edited the clone) or `rejected` (kept it; note = the reason, addressed to Chad).
+3. **The same Chad re-reviews** the clone plus the reasons: checks fixes actually land, drops rejected comments whose reason holds, presses the ones that don't, and comments on anything new.
 4. Repeat until Chad is out of comments or the rounds run out (**default 3, set via `rounds`**). Whatever is still rejected at the end is **unresolved tension** — it goes to the human, first thing. Nobody in the loop overrules anybody.
 
-For **images**, same loop: Chad looks at the picture and comments part by part; the defender remakes it directly into the clone if it has image tools, or returns a concrete plan if it doesn't — and Chad judges the remake (or the plan) next round.
+## Two altitudes, same loop
+
+A **unit** is whatever the audience actually meets — and a real audience never meets files one at a time. On a multi-file artifact the loop therefore runs twice over:
+
+- **The whole bundle first.** Chad walks the user-facing files in reading order — entry page first, following the links — and comments only on what can be seen *across* files: the same thing told in three places, files that contradict each other, a file whose whole job another file already does, an order that buries the point. The defender answers at the same altitude, editing the clone directly: merging files, deleting a file whose job is done elsewhere, giving repeated content its one home, fixing the links. This runs first and alone — don't polish a file that's about to be merged away.
+- **Then each surviving file on its own, in parallel** — the within-file pass, on the post-restructure clone. **Images** run the same loop: Chad looks at the picture part by part; the defender remakes it in place if it has image tools, or returns a concrete plan if it doesn't.
+
+**The clone is the workbench and the proposal.** Every defender edits it directly; nothing outside the clone root is ever touched. Applying the review = diffing the clone against the original.
 
 ## What gets reviewed
 
@@ -44,7 +53,7 @@ Every user-facing file and image — anything a real user reads, sees, or lands 
 
 ### Small artifact (a single file, or a couple) — run it directly
 
-You don't need the workflow. Pin the crux, then run the loop with sub-agents exactly as above — including any images or diagrams the artifact embeds, pulled into Chad's context so he judges words and pictures side by side, the way a human meets them. Chad gets the crux and nothing else — no backstory. Give the defender the same mandate, one ledger row per comment, and hand back unresolved tensions first.
+You don't need the workflow. Pin the crux, then run the loop with sub-agents exactly as above — including any images or diagrams the artifact embeds, pulled into Chad's context so he judges words and pictures side by side, the way a human meets them. If it's a few files, give Chad the whole set in reading order so the cross-file comments still happen. Chad gets the crux and nothing else — no backstory. Give the defender the same mandate, one ledger row per comment, and hand back unresolved tensions first.
 
 ### Large or multi-file artifact (a directory, a bundle) — use the workflow
 
@@ -59,7 +68,7 @@ Workflow({
 })
 ```
 
-The workflow **clones** first (the original is never touched), pins the **crux** if you didn't supply one, **triages** the user-facing files, then runs the loop on each unit in parallel.
+The workflow **clones** first (the original is never touched), pins the **crux** if you didn't supply one, **triages** the user-facing files, then runs the loop at both altitudes: the whole bundle first, then each surviving file in parallel (re-triaging in between if the bundle pass merged, created, or deleted files).
 
 - **`path`** — a single file or a whole directory/bundle. Use **`text`** instead for inline content with no file.
 - **`crux`** — supply it when you know the job better than an agent would infer.
@@ -69,7 +78,7 @@ It returns `{ cloneRoot, crux, tensions, commentTable, results, summary }`:
 
 - **`tensions`** — comments the defender rejected that still stand. **Lead your hand-back with these**; the human rules on them.
 - **`commentTable`** — every comment with its round, what the defender did (`fixed` / `rejected (kept)`), and his note. Render it as a table.
-- **`results`** — per unit: the full new text, or a remade image path, or the update plan, plus a change summary. Hand these to a fresh agent to apply as a diff/PR; don't burn your own context materializing edits.
+- **`cloneRoot`** — **the clone is the proposed version.** Apply by diffing it against the original (hand that to a fresh agent as a diff/PR; don't burn your own context materializing edits). `results` carries the per-unit changed flags and change summaries — plus `newText` in inline-text mode, and an image's update `plan` when the defender lacked image tools.
 
 The output is a review to act on, not a blind rewrite — the original is untouched until you say so.
 
@@ -85,4 +94,4 @@ The workflow is a starting point, not a black box. Copy `workflows/chad-review.j
 
 ## Sibling
 
-For the *subtractive* axis — cutting what isn't load-bearing rather than flattening what shows off — see the **elon-algorithm** plugin. Chad strips the performance; Elon's algorithm deletes the bloat. Run both when an artifact is bloated *and* clever.
+For the *subtractive* axis — cutting what isn't load-bearing rather than flattening what shows off — see the **elon-algorithm** plugin. Chad strips the performance (including the cross-file kind: the same pitch told in three files); Elon's algorithm deletes the bloat. Run both when an artifact is bloated *and* clever.

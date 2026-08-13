@@ -10,7 +10,7 @@ AI output pads the job with clever words, metaphors, and caveats nobody needed �
 
 <img src="assets/chad.png" width="170" align="right" alt="Chad. Yes, that Chad.">
 
-He reads your file knowing only the job it's there to do, and leaves the dumb comments: "why is this here?", "why say it this fancy way?". A defender — who treats Chad as an asset, a bullshit detector running before the real world does — addresses every comment: fixes the file, or rejects the comment and tells Chad why. Then the same Chad re-reviews, round after round (default 3), until he's satisfied or the rounds run out.
+He meets your artifact the way a real user does — the whole thing first, in reading order, so "these three docs tell me the same thing" gets caught, then each file on its own — knowing only the job it's there to do, and leaves the dumb comments: "why is this here?", "why say it this fancy way?". A defender — who treats Chad as an asset, a bullshit detector running before the real world does — addresses every comment: fixes the file, or rejects the comment and tells Chad why. Then the same Chad re-reviews, round after round (default 3), until he's satisfied or the rounds run out.
 
 ## Install
 

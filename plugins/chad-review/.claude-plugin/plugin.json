@@ -1,6 +1,6 @@
 {
   "name": "chad-review",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Strip the showing-off from any artifact by making it survive Chad — its intended audience with the meme personality, impossible to impress. Chad leaves dumb honest feedback comments (bird's-eye included), a defender who treats him as an asset fixes or rejects each with a reason, and the same Chad re-reviews round after round (default 3); unresolved tensions go to the human. Ships a reusable workflow + an accompanying skill.",
   "author": {
     "name": "Nityesh Agarwal"
