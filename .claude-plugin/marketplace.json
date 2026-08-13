@@ -21,7 +21,7 @@
     {
       "name": "chad-review",
       "description": "Strip the showing-off from any artifact by making it survive Chad — an impatient user who only cares about the job and refuses to be impressed. Ships a reusable workflow + skill.",
-      "version": "0.1.2",
+      "version": "0.2.1",
       "source": "./plugins/chad-review"
     },
     {
