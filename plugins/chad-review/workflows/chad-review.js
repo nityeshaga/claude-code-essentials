@@ -1,6 +1,6 @@
 export const meta = {
   name: 'chad-review',
-  description: "Strip the showing-off from a CLONE of an artifact. Triage picks every USER-FACING file and image (skipping behind-the-scenes plumbing), then Chad -- an impatient user who only cares about the job and refuses to be impressed -- meets each cold and asks the dumbest honest questions he has. On text a defender rewrites it plainer and a FRESH Chad re-reads (up to 2 rounds); on images (Chad is multimodal) he looks and a defender rules whether it earns its place. A single judge accepts the plainer copy and returns a review-plan + image findings + a ranked add-back menu for any voice Chad sanded off. Original is never touched.",
+  description: "Strip the showing-off from a CLONE of an artifact. Triage picks every USER-FACING file and image (skipping behind-the-scenes plumbing), then Chad -- an impatient user who only cares about the job and refuses to be impressed -- meets each cold and asks the dumbest honest questions he has. On text a defender rewrites it plainer and a FRESH Chad re-reads (up to 2 rounds); on images (Chad is multimodal) he critiques it part by part and a defender remakes it directly if it has the tools, else returns a plan to update it. A single judge accepts the plainer copy and returns a review-plan + image findings + a ranked add-back menu for any voice Chad sanded off. Original is never touched.",
   whenToUse: 'When you want to strip the showing-off from an artifact -- purple prose, gold-plating, invented caveats, self-narration, sounding-smart, decorative images -- across every user-facing file and get a reviewable plan back.',
   phases: [
     { title: 'Clone', detail: 'copy the artifact so the swarm works on the clone; list every file' },
@@ -84,27 +84,33 @@ async function chadPass({ crux, unit, label, phaseName, contentBlock, extraNote 
   }
 }
 
-// A Chad pass over one USER-FACING image. Chad is multimodal -- he LOOKS at it and asks his dumb questions; a defender
-// rules whether it earns its place. No rewrite (you can't repaint a PNG): the output is a verdict + concrete guidance.
+// A Chad pass over one USER-FACING image -- the same treatment text gets. Chad is multimodal: he LOOKS at the image and
+// critiques it part by part, like walking a page top to bottom. Then the defender's call: if it has the tools to edit or
+// regenerate the image, it REMAKES it directly into the clone (original untouched) and reports what changed; if it can't,
+// it returns a concrete PLAN to update it instead. Left open on purpose -- the agent decides which it can do.
 const IMG_Q_SCHEMA = { type: 'object', required: ['questions', 'birdsEye'], properties: { questions: { type: 'array', items: { type: 'string' } }, birdsEye: { type: 'string' } } }
 const IMG_DEFEND_SCHEMA = { type: 'object', required: ['verdict'], properties: {
-  verdict: { type: 'string', enum: ['keep', 'remake', 'cut'] },
-  guidance: { type: 'string' },
+  verdict: { type: 'string', enum: ['keep', 'update', 'cut'] },
+  remadePath: { type: 'string' }, // set if the defender actually produced an updated image (saved in the clone)
+  plan: { type: 'array', items: { type: 'string' } }, // steps to update the image, when it wasn't remade directly
+  changeSummary: { type: 'string' }, // what changed, whether remade or planned
   ledger: { type: 'array', items: { type: 'object', required: ['question', 'action'], properties: { question: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'argued'] }, note: { type: 'string' } } } },
 } }
 async function chadImagePass({ crux, path, label, phaseName }) {
   const q = await agent(
-    `${CHAD}\n\nTHE CRUX: ${crux}\n\nOpen and LOOK at the image at ${path} with your tools -- you can see images. It's a user-facing visual in this artifact.\n\nAsk your dumb questions about it: what is it for, does it help me do the job, is it just decoration or showing off, is it cluttered or off-message, would I even miss it if it were gone? Then give ONE blunt bird's-eye verdict on it.`,
+    `${CHAD}\n\nTHE CRUX: ${crux}\n\nOpen and LOOK at the image at ${path} with your tools -- you can see images. It's a user-facing visual in this artifact.\n\nWalk it like you'd walk a page top to bottom: go part by part -- the panels, the labels, the header, the characters, whatever it's made of -- and fire a dumb question at every piece that trips you. What is this part for? does it help me do the job, or is it decoration / clutter / showing off? Point at the specific region you mean. Return an EMPTY list only if nothing trips you.\n\nThen step back and give ONE blunt bird's-eye conclusion on the whole image: does it land, or is it too busy / off-message / doing more than the job needs?`,
     { label: `chad:img:${label}`, phase: phaseName, schema: IMG_Q_SCHEMA },
   )
   const questions = (q.questions || []).filter(Boolean)
   const defended = await agent(
-    `You are the defender of a user-facing image (${label}). An impatient user (Chad) looked at it cold and asked:\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n') || '(no questions -- he had none)'}\n\nTHE CRUX (the job that must still get done): ${crux}\n\n` +
-    `Rule on whether the image earns its place. You can't repaint it, so give a verdict + concrete guidance a designer could act on. verdict: 'keep' (it earns its place as-is), 'remake' (keep the slot but change it -- say exactly what), or 'cut' (the job doesn't need it). Kill decoration and showing-off; keep anything that genuinely helps the user do the job. ALSO return ledger -- one row per question: action=fixed if your guidance addresses it, action=argued if you're pushing back (note = why).`,
+    `You are the defender of a user-facing image (${label}). An impatient user (Chad) looked at it cold and, part by part, asked:\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n') || '(no questions -- he had none)'}\n\nTHE CRUX (the job that must still get done): ${crux}\nThe image is at ${path} (this is the CLONE -- never touch the original).\n\n` +
+    `Decide its fate against the crux: kill decoration and showing-off, keep whatever genuinely helps the user do the job, push back on Chad where a part is earned. verdict: 'keep' (earns its place as-is), 'update' (it needs changes), or 'cut' (the job doesn't need this image).\n` +
+    `If 'update': if you HAVE tools to edit or regenerate images, REMAKE it directly -- write the improved image into the clone and return remadePath (where you saved it) + changeSummary. If you DON'T have those tools, return a concrete PLAN instead -- one step per change a designer could execute (cut, add, redo, relabel, simplify, move) -- plus changeSummary. Your call which one you can actually do.\n` +
+    `ALSO return ledger -- one row per question: action=fixed if your remake or plan addresses it, action=argued if you're keeping it as-is (note = why).`,
     { label: `defend:img:${label}`, phase: phaseName, schema: IMG_DEFEND_SCHEMA },
   )
   return {
-    kind: 'image', verdict: defended.verdict, guidance: defended.guidance || '',
+    kind: 'image', verdict: defended.verdict, remadePath: defended.remadePath || null, plan: (defended.plan || []).filter(Boolean), changeSummary: defended.changeSummary || '',
     report: { label, asked: questions.length, roundsRun: 1, questions, argued: (defended.ledger || []).filter(l => l.action === 'argued'), conclusions: q.birdsEye ? [{ round: 1, take: q.birdsEye }] : [] },
   }
 }
@@ -195,7 +201,7 @@ if (isText) {
   // Image files: Chad is multimodal, so he LOOKS at each and a defender rules whether it earns its place (verdict + guidance, no rewrite).
   await parallel(imageFiles.map(f => () =>
     chadImagePass({ crux, path: f.path, label: base(f.path), phaseName: 'Chad' })
-      .then(im => { chadReports.push(im.report); if (im.verdict !== 'keep') imageFindings.push({ id: `img-${imageFindings.length}`, file: f.path, target: f.path, verdict: im.verdict, guidance: im.guidance }) }),
+      .then(im => { chadReports.push(im.report); if (im.verdict !== 'keep') imageFindings.push({ id: `img-${imageFindings.length}`, file: f.path, target: f.path, verdict: im.verdict, remadePath: im.remadePath, plan: im.plan, changeSummary: im.changeSummary }) }),
   ))
   const rewritten = [...chadByFile.values()].filter(c => c.decision === 'rewrite' && c.newText).length
   log(`chad: ${burial.length} burial notes; ${rewritten}/${textFiles.length} text files rewritten; ${imageFiles.length} images looked at, ${imageFindings.length} flagged`)
