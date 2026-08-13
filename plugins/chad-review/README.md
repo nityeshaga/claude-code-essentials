@@ -2,9 +2,13 @@
 
 Strip the showing-off. Make any artifact — code, a prompt, a skill, a doc, a landing page — survive Chad: an impatient user who only cares about getting his job done and refuses to be impressed.
 
+![Chad Review, explained as a one-page comic](assets/chad-review-comic.png)
+
 ## Why
 
 AI output *shows off*: it reaches for the clever word, the metaphor, the caveat nobody needed, the bit of self-narration — because it doesn't trust the material to be interesting on its own. That performance buries the job under noise.
+
+<img src="assets/chad.png" width="170" align="right" alt="Chad. Yes, that Chad.">
 
 Chad is the antidote. He gets one piece of context — the **crux**, the job the artifact is there to do — and meets it cold, like anyone who lands on it with a job to do. Cleverness for its own sake doesn't land on him. He doesn't rewrite; he asks sharp, dumb questions ("wait, why is this here?", "why say it this fancy way?"). A defender then ties each span to the crux or remakes it plainer, and a *fresh* Chad re-reads the rewrite so new showing-off can't sneak back in.
 
