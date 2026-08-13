@@ -1,11 +1,11 @@
 export const meta = {
   name: 'chad-review',
-  description: "Strip the showing-off from a CLONE of an artifact. Chad -- the artifact's intended audience with the meme personality, impossible to impress -- meets every user-facing file and image cold, reviews it in depth, and leaves feedback comments, always ending with a bird's-eye comment on the whole thing. A defender who treats Chad as an asset (a bullshit detector running before the real world does) addresses every comment: fixes the artifact, or rejects the comment with a reason Chad reads next round. The same Chad re-reviews, round after round (default 3, caller-set via args.rounds). Returns the final version per unit, one comment table of every comment and what the defender did with it, and the unresolved tensions between the two -- surfaced first, for the human to rule on. Original is never touched.",
-  whenToUse: 'When you want to strip the showing-off from an artifact -- purple prose, gold-plating, invented caveats, self-narration, sounding-smart, decorative images -- across every user-facing file and get the plainer version plus the unresolved tensions back for review.',
+  description: "Strip the showing-off from a CLONE of an artifact. Chad -- the artifact's intended audience with the meme personality, impossible to impress -- meets it cold the way a real user does: the WHOLE bundle first, walked in reading order (cross-file review -- the same thing told in three files, files that contradict each other, a file whose job another file does), then every user-facing file and image on its own. At both altitudes it's the same loop: Chad leaves feedback comments, always ending with a bird's-eye comment on the whole thing; a defender who treats Chad as an asset (a bullshit detector running before the real world does) addresses every comment -- edits the clone, or rejects the comment with a reason Chad reads next round -- and the same Chad re-reviews, round after round (default 3, caller-set via args.rounds). The clone is the workbench AND the proposal: apply by diffing it against the original. Returns one comment table of every comment and what the defender did with it, and the unresolved tensions between the two -- surfaced first, for the human to rule on. Original is never touched.",
+  whenToUse: 'When you want to strip the showing-off from an artifact -- purple prose, gold-plating, invented caveats, self-narration, sounding-smart, decorative images, and the cross-file kind: the same pitch repeated across files, docs that contradict each other -- and get a reviewable clone plus the unresolved tensions back.',
   phases: [
     { title: 'Clone', detail: 'copy the artifact so the review works on the clone; list every file' },
     { title: 'Crux', detail: 'pin the job-to-be-done in one or two plain sentences (Chad\'s yardstick)' },
-    { title: 'Review', detail: 'triage user-facing files, then Chad <-> defender loop each one for N rounds (default 3)' },
+    { title: 'Review', detail: 'triage user-facing files; Chad <-> defender on the whole bundle first (cross-file), then each file in parallel' },
   ],
 }
 
@@ -39,35 +39,39 @@ You are unimpressed by cleverness for its own sake -- a nice metaphor, "the most
 If nothing trips you AND the whole thing lands, return an EMPTY list -- no comments, not even the bird's-eye.`
 
 const CHAD_SCHEMA = { type: 'object', required: ['comments'], properties: { comments: { type: 'array', items: { type: 'string' } } } }
-// One row per comment: fixed = changed the artifact for it; rejected = kept it as-is (note = the reason, written to Chad).
+// One row per comment: fixed = changed the clone for it; rejected = kept it as-is (note = the reason, written to Chad).
 const DEFEND_SCHEMA = { type: 'object', required: ['decision', 'ledger'], properties: {
   decision: { type: 'string', enum: ['update', 'clean'] },
-  newText: { type: 'string' },
-  remadePath: { type: 'string' }, // images: set if the defender actually produced an updated image in the clone
+  newText: { type: 'string' }, // inline-text mode only: the full revised text (there is no file to edit)
   plan: { type: 'array', items: { type: 'string' } }, // images: steps to update it, when the defender lacks image tools
   changeSummary: { type: 'string' },
   ledger: { type: 'array', items: { type: 'object', required: ['comment', 'action'], properties: { comment: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'rejected'] }, note: { type: 'string' } } } },
 } }
 
-// The whole review is this one loop, per unit (a text file or an image -- Chad is multimodal):
-// Chad reviews and leaves comments (last one always the bird's-eye) -> the defender addresses every comment,
-// fixing the artifact or rejecting with a reason -> the same Chad re-reviews the new version plus the reasons.
-// Repeat until Chad runs out of comments or the rounds run out. Whatever is still rejected at the end is the
-// unresolved tension between them, and it goes to the human -- nobody in the loop overrules anybody.
+// The whole review is this one loop, per unit. A unit is whatever the audience meets: the WHOLE BUNDLE (walked in
+// reading order -- the only altitude where cross-file bullshit is visible), a single text file, an image, or inline
+// text. Chad reviews and leaves comments (last one always the bird's-eye) -> the defender addresses every comment,
+// editing the clone or rejecting with a reason -> the same Chad re-reviews the clone plus the reasons. Repeat until
+// Chad runs out of comments or the rounds run out. Whatever is still rejected at the end is the unresolved tension
+// between them, and it goes to the human -- nobody in the loop overrules anybody.
 async function chadLoop({ crux, kind, label, phaseName, subject }) {
-  let current = subject
-  let finalText = null, remadePath = null, plan = []
+  let current = subject // only inline text evolves in-context; file/image/bundle live in the clone and are re-read
+  let newText = null, plan = []
+  let changed = false
   let transcript = ''
   const rows = [] // comment-table rows for this unit
   const changes = []
   let tensions = []
   for (let round = 1; round <= ROUNDS; round++) {
-    const look = kind === 'image'
-      ? `Open and LOOK at the image at ${current} with your tools -- you can see images. Walk it part by part: the panels, the labels, the header, whatever it's made of.`
-      : `The artifact in front of you (${label}):\n${current}`
+    const look = {
+      inline: `The artifact in front of you (${label}):\n${current}`,
+      file: `Open and read the file at ${subject} with your tools.`,
+      image: `Open and LOOK at the image at ${subject} with your tools -- you can see images. Walk it part by part: the panels, the labels, the header, whatever it's made of.`,
+      bundle: `The artifact is a BUNDLE of files. Its user-facing files:\n${subject}\n\nOpen and read them with your tools IN THE ORDER a real user would meet them: the entry file first (landing page / README / index), then what it links to. You are the only reviewer who sees the whole; later passes handle each file alone. So comment ONLY on what can be seen ACROSS files, never inside one: the same thing told in more than one file, files that contradict each other, a file whose whole job another file already does, an order that makes you wade before the point. Leave within-file wording alone.`,
+    }[kind]
     const opener = round === 1
       ? `${look}\n\nReview it and leave your feedback comments.`
-      : `You are the SAME Chad, still in the room -- round ${round}. The review so far:\n\n${transcript}\nThe defender just responded. ${look}\n\nRe-review it: where he fixed something, check the fix actually lands for you; where he rejected a comment, read his reason -- drop the comment if the reason holds, press it again if it doesn't. Then comment on anything the new version still does or newly introduced. Don't re-raise what he genuinely resolved.`
+      : `You are the SAME Chad, still in the room -- round ${round}. The review so far:\n\n${transcript}\nThe defender just responded${kind === 'inline' ? '' : ' by editing the clone'}. ${look}\n\nRe-review it: where he fixed something, check the fix actually lands for you; where he rejected a comment, read his reason -- drop the comment if the reason holds, press it again if it doesn't. Then comment on anything the new version still does or newly introduced. Don't re-raise what he genuinely resolved.`
     const q = await agent(
       `${CHAD}\n\nTHE CRUX: ${crux}\n\n${opener}`,
       { label: `chad${round}:${label}`, phase: phaseName, schema: CHAD_SCHEMA },
@@ -75,15 +79,19 @@ async function chadLoop({ crux, kind, label, phaseName, subject }) {
     const comments = (q.comments || []).filter(Boolean)
     if (!comments.length) { tensions = []; break } // Chad is satisfied -- rejections he read and let stand are accepted, not tension
     const numbered = comments.map((c, i) => `${i + 1}. ${c}`).join('\n')
+    const act = {
+      inline: `Return decision=update with newText (the FULL revised artifact) + changeSummary, or decision=clean if nothing needed changing.`,
+      file: `Fix by EDITING the file at ${subject} directly with your tools -- the clone is the workbench, and nothing outside the clone root is ever touched. Rewrite, reorganize, cut; then return decision=update + changeSummary, or decision=clean if nothing needed changing.`,
+      image: `If you HAVE tools to edit or regenerate images, fix by REMAKING the image at ${subject} in place in the clone, then return decision=update + changeSummary. If you DON'T, return decision=update with plan (one concrete step per change a designer could execute) + changeSummary. decision=clean if nothing needed changing.`,
+      bundle: `Fix by EDITING the files in the clone directly with your tools -- merge files, delete a file whose job another already does, move content to its one home, fix the links between them. The clone is the workbench; nothing outside the clone root is ever touched. Then return decision=update + changeSummary (name every file you changed, created, or deleted), or decision=clean if nothing needed changing.`,
+    }[kind]
     const d = await agent(
-      `You are the defender -- you own this ${kind === 'image' ? 'image' : 'artifact'} (${label}) and you ship it. Chad is its intended audience, and he is an ASSET, not an opponent: he is running his bullshit detector over it before the real world does, and every comment is a free preview of where it fails the person it's for. This is round ${round}. His comments:\n\n${numbered}\n\nTHE CRUX (the job that must still get done): ${crux}\n` +
+      `You are the defender -- you own this ${kind === 'bundle' ? 'artifact (the whole bundle)' : kind} (${label}) and you ship it. Chad is its intended audience, and he is an ASSET, not an opponent: he is running his bullshit detector over it before the real world does, and every comment is a free preview of where it fails the person it's for. This is round ${round}. His comments:\n\n${numbered}\n\nTHE CRUX (the job that must still get done): ${crux}\n` +
       (round > 1 ? `\nThe review so far (stay consistent with what you already fixed or rejected):\n${transcript}\n` : '') +
-      `\nThe current ${kind === 'image' ? `image is at ${current} (this is the CLONE -- never touch the original)` : `artifact:\n${current}`}\n\n` +
-      `Address EVERY comment, the bird's-eye one included. If a comment exposes showing-off -- purple prose, gold-plating, jargon, an invented caveat, self-narration, sounding-smart, or making the audience wade before the point -- FIX it. The bird's-eye comment is about the shape of the whole and deserves a whole-shaped answer: reorganize, merge parts that do the same job, remove a part whose job the rest already does. Repetition is a structure smell -- when the same thing appears in three places, the fix is one home for it, not three local edits. Keep every fact and instruction that serves the job, each in ONE home; that rule does not protect duplicate homes, or a part whose job is already done elsewhere. If a comment is wrong -- the part genuinely earns its place against the crux -- keep it and tell Chad why. Kill only the performance, never load-bearing substance.\n` +
-      (kind === 'image'
-        ? `Return decision=update and: if you HAVE tools to edit or regenerate images, REMAKE it directly -- write the improved image into the clone and return remadePath + changeSummary; if you DON'T, return plan (one concrete step per change a designer could execute) + changeSummary. decision=clean if nothing needed changing.\n`
-        : `Return decision=update with newText (the FULL revised artifact) + changeSummary, or decision=clean if nothing needed changing.\n`) +
-      `ALSO return ledger -- one row per comment above, in order: action=fixed if you changed the artifact for it, action=rejected if you kept it as-is (note = your one-line reason, written TO Chad -- he reads it next round). Do not pad.`,
+      (kind === 'inline' ? `\nThe current artifact:\n${current}\n` : '') +
+      `\nAddress EVERY comment, the bird's-eye one included. If a comment exposes showing-off -- purple prose, gold-plating, jargon, an invented caveat, self-narration, sounding-smart, or making the audience wade before the point -- FIX it. The bird's-eye comment is about the shape of the whole and deserves a whole-shaped answer: reorganize, merge parts that do the same job, remove a part whose job the rest already does. Repetition is a structure smell -- when the same thing appears in three places, the fix is one home for it, not three local edits. Keep every fact and instruction that serves the job, each in ONE home; that rule does not protect duplicate homes, or a part whose job is already done elsewhere. If a comment is wrong -- the part genuinely earns its place against the crux -- keep it and tell Chad why. Kill only the performance, never load-bearing substance.\n` +
+      `${act}\n` +
+      `ALSO return ledger -- one row per comment above, in order: action=fixed if you changed it for that comment, action=rejected if you kept it as-is (note = your one-line reason, written TO Chad -- he reads it next round). Do not pad.`,
       { label: `defend${round}:${label}`, phase: phaseName, schema: DEFEND_SCHEMA },
     )
     const ledger = d.ledger || []
@@ -95,32 +103,36 @@ async function chadLoop({ crux, kind, label, phaseName, subject }) {
       (d.changeSummary ? `What changed: ${d.changeSummary}\n` : '') +
       ((d.plan || []).length ? `Defender's plan for the image (no image tools available):\n${d.plan.map(s => '- ' + s).join('\n')}\n` : '') +
       `Per-comment outcome:\n${ledger.map(l => `- "${l.comment}" -> ${l.action}${l.note ? ': ' + l.note : ''}`).join('\n') || '(none)'}\n\n`
-    if (d.decision === 'update' && kind !== 'image' && d.newText) { current = d.newText; finalText = d.newText }
-    else if (d.decision === 'update' && kind === 'image' && d.remadePath) { current = d.remadePath; remadePath = d.remadePath }
-    else if (d.decision === 'update' && kind === 'image' && (d.plan || []).length) { plan = d.plan.filter(Boolean) } // Chad judges the plan next round via the transcript
-    else if (!tensions.length) break // nothing changed and nothing rejected -- nothing for Chad to react to
+    if (d.decision === 'update') {
+      changed = true
+      if (kind === 'inline' && d.newText) { current = d.newText; newText = d.newText }
+      if (kind === 'image' && (d.plan || []).length) plan = d.plan.filter(Boolean)
+    } else if (!tensions.length) break // nothing changed and nothing rejected -- nothing for Chad to react to
   }
-  return { label, kind, newText: finalText, remadePath, plan, changeSummary: changes.join('\n'), rows, tensions }
+  return { label, kind, changed, newText, plan, changeSummary: changes.join('\n'), rows, tensions }
 }
 
-// ---- Clone: the review works on a copy; the original is never touched. ----
+// ---- Clone: the review works on a copy. The clone is the workbench AND the proposal; the original is never touched. ----
 phase('Clone')
 const isText = !!A.text && !A.path
 let cloneRoot = null, files = []
+const LIST_SCHEMA = { type: 'object', required: ['files'], properties: { files: { type: 'array', items: { type: 'object', required: ['path', 'lines', 'kind'], properties: { path: { type: 'string' }, lines: { type: 'integer' }, kind: { type: 'string', enum: ['text', 'image', 'other'] } } } } } }
+const LIST_SPEC = (root) =>
+  `List EVERY file (not just text), skipping only junk:\n  find "${root}" -type f -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' -not -name '.DS_Store' -print0 | xargs -0 wc -l 2>/dev/null\n` +
+  `For each file return: path (absolute, under ${root}); lines (0 for binary/image); and kind -- 'text' for anything readable (prose, markdown, HTML/CSS, code, config), 'image' for a picture a user sees (png/jpg/jpeg/gif/svg/webp), or 'other' for binary/data. Return all of them, unfiltered.`
 if (!isText) {
   if (!A.path) throw new Error('need {path} or {text}')
   cloneRoot = A.cloneTo || (String(A.path).replace(/\/+$/, '') + '-clone')
   const manifest = await agent(
     `Clone an artifact so a review can work on the copy without ever touching the original.\n` +
     `Run exactly:\n  rm -rf "${cloneRoot}" && cp -R "${A.path}" "${cloneRoot}"\n` +
-    `Then list EVERY file in the clone (not just text), skipping only junk:\n  find "${cloneRoot}" -type f -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' -not -name '.DS_Store' -print0 | xargs -0 wc -l 2>/dev/null\n` +
-    `For each file return: path (absolute, under the clone root); lines (0 for binary/image); and kind -- 'text' for anything readable (prose, markdown, HTML/CSS, code, config), 'image' for a picture a user sees (png/jpg/jpeg/gif/svg/webp), or 'other' for binary/data. Return all of them, unfiltered -- a later step decides what's user-facing.`,
-    { label: 'clone', phase: 'Clone', schema: { type: 'object', required: ['files'], properties: { files: { type: 'array', items: { type: 'object', required: ['path', 'lines', 'kind'], properties: { path: { type: 'string' }, lines: { type: 'integer' }, kind: { type: 'string', enum: ['text', 'image', 'other'] } } } } } } },
+    `Then: ${LIST_SPEC(cloneRoot)}`,
+    { label: 'clone', phase: 'Clone', schema: LIST_SCHEMA },
   )
   files = (manifest.files || []).filter(f => f.path && !/\/\.git\//.test(f.path))
   if (!files.length) throw new Error('clone produced no files -- aborting rather than reviewing an empty artifact')
 }
-const manifestStr = files.map(f => `${f.path} (${f.kind === 'image' ? 'image' : f.lines + 'L'})`).join('\n')
+const manifestStr = fs => fs.map(f => `${f.path} (${f.kind === 'image' ? 'image' : f.lines + 'L'})`).join('\n')
 log(isText ? 'single-text mode' : `cloned ${files.length} files (${files.reduce((a, f) => a + f.lines, 0)}L) -> ${cloneRoot}`)
 
 // ---- Crux: the job-to-be-done, in plain words -- Chad's only context and yardstick. ----
@@ -129,38 +141,55 @@ let crux = A.crux
 if (!crux) {
   const cx = await agent(
     `Pin the CRUX of this artifact: the single job whoever is on the other end came to get done, in one or two plain sentences and their words -- not what it contains, what it is FOR. No jargon, no hedging.\n` +
-    (isText ? `\nARTIFACT:\n${A.text}` : `\nFile tree (clone root ${cloneRoot}); read the entry files (README / SKILL.md / index / main) with your tools to infer the job:\n${manifestStr}`),
+    (isText ? `\nARTIFACT:\n${A.text}` : `\nFile tree (clone root ${cloneRoot}); read the entry files (README / SKILL.md / index / main) with your tools to infer the job:\n${manifestStr(files)}`),
     { label: 'crux', phase: 'Crux', schema: { type: 'object', required: ['crux'], properties: { crux: { type: 'string' } } } },
   )
   crux = cx.crux
 }
 log(`crux: ${crux}`)
 
-// ---- Review: triage the user-facing units, then run the loop on each. ----
+// ---- Review: triage the user-facing files, then the loop -- whole bundle first, then each file in parallel. ----
 phase('Review')
-let units = []
-if (isText) {
-  units = [await chadLoop({ crux, kind: 'text', label: '(text)', phaseName: 'Review', subject: A.text })]
-} else {
-  // Triage: judgment, not a whitelist. Pick every USER-FACING file (incl. images); skip behind-the-scenes plumbing.
-  const triage = await agent(
-    `You are choosing what gets the Chad review. THE CRUX: ${crux}\n\nFile tree (clone root ${cloneRoot}):\n${manifestStr}\n\n` +
+const TRIAGE = (fs) =>
+  agent(
+    `You are choosing what gets the Chad review. THE CRUX: ${crux}\n\nFile tree (clone root ${cloneRoot}):\n${manifestStr(fs)}\n\n` +
     `Select every USER-FACING file -- anything a real user reads, sees, or lands on: docs / READMEs, landing pages, HTML/CSS a user renders, prose, marketing copy, and images they actually see. SKIP behind-the-scenes plumbing they never see: build config, CI yaml, lockfiles, generated code, test fixtures, internal tooling scripts -- UNLESS that file IS the artifact being shipped. Cost is no concern; when in doubt, include it. Return the paths to review.`,
     { label: 'triage', phase: 'Review', schema: { type: 'object', required: ['review'], properties: { review: { type: 'array', items: { type: 'object', required: ['path'], properties: { path: { type: 'string' }, why: { type: 'string' } } } } } } },
-  )
-  const pick = new Set((triage.review || []).map(r => r.path))
-  const selected = files.filter(f => pick.has(f.path) && f.kind !== 'other')
+  ).then(t => { const pick = new Set((t.review || []).map(r => r.path)); return fs.filter(f => pick.has(f.path) && f.kind !== 'other') })
+
+let units = []
+if (isText) {
+  units = [await chadLoop({ crux, kind: 'inline', label: '(text)', phaseName: 'Review', subject: A.text })]
+} else {
+  let selected = await TRIAGE(files)
   log(`triage: ${selected.length} user-facing of ${files.length} files`)
-  units = (await parallel(selected.map(f => () => chadLoop({
+
+  // Altitude 1: the whole bundle, walked in reading order -- the only place cross-file bullshit is visible.
+  // Runs FIRST and alone: don't polish a file that's about to be merged away.
+  if (selected.length > 1) {
+    const bundle = await chadLoop({ crux, kind: 'bundle', label: '(bundle)', phaseName: 'Review', subject: manifestStr(selected) })
+    units.push(bundle)
+    if (bundle.changed) {
+      // The bundle defender may have merged, created, or deleted files -- re-list the clone and re-triage.
+      const relist = await agent(LIST_SPEC(cloneRoot), { label: 'relist', phase: 'Review', schema: LIST_SCHEMA })
+      const refreshed = (relist.files || []).filter(f => f.path && !/\/\.git\//.test(f.path))
+      selected = await TRIAGE(refreshed)
+      log(`bundle pass changed the clone -> re-triaged: ${selected.length} files for the per-file pass`)
+    }
+  }
+
+  // Altitude 2: each surviving file on its own, in parallel, on the post-restructure clone.
+  const perFile = (await parallel(selected.map(f => () => chadLoop({
     crux,
-    kind: f.kind,
+    kind: f.kind === 'image' ? 'image' : 'file',
     label: base(f.path),
     phaseName: 'Review',
-    subject: f.kind === 'image' ? f.path : `(open and read ${f.path} with your tools)`,
+    subject: f.path,
   }).then(u => ({ ...u, file: f.path }))))).filter(Boolean)
+  units.push(...perFile)
 }
 
-// ---- Hand-back: tensions first (the human rules on them), then the comment table, then the results. ----
+// ---- Hand-back: tensions first (the human rules on them), then the comment table, then the clone as the proposal. ----
 const multiUnit = units.length > 1
 const tensions = units.flatMap(u => u.tensions.map(t => ({ file: multiUnit ? u.label : undefined, ...t })))
 const commentTable = units.flatMap(u => u.rows.map(r => ({
@@ -171,19 +200,18 @@ const commentTable = units.flatMap(u => u.rows.map(r => ({
   note: r.note,
 })))
 const results = units.map(u => ({
-  file: u.file || u.label, kind: u.kind,
-  changed: !!(u.newText || u.remadePath || u.plan.length),
-  newText: u.newText, remadePath: u.remadePath, plan: u.plan,
+  file: u.file || u.label, kind: u.kind, changed: u.changed,
+  newText: u.newText, plan: u.plan,
   changeSummary: u.changeSummary,
 }))
 const changedCount = results.filter(r => r.changed).length
 log(`review: ${commentTable.length} comments across ${units.length} unit(s); ${changedCount} updated; ${tensions.length} unresolved tension(s)`)
 
 return {
-  cloneRoot,
+  cloneRoot, // the clone IS the proposed version -- apply by diffing it against the original (inline mode: see results[0].newText)
   crux,
   tensions, // surface these to the human FIRST -- they are what the review could not settle
   commentTable, // render as a table: every comment, the round, what the defender did, and his note
-  results, // per unit: the full new text / remade image / plan, ready for a fresh agent to apply
+  results, // per unit: changed flag + change summary (inline text carries newText; an image without tools carries a plan)
   summary: `${commentTable.length} comments across ${units.length} unit(s); ${changedCount} updated; ${tensions.length} unresolved tension(s)${tensions.length ? ' for you to rule on' : ''}.`,
 }
