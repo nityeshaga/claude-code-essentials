@@ -27,7 +27,7 @@ The bullshit detector is Chad's *posture*, not a list, which is why it ports to 
 
 ## What gets reviewed
 
-**Every user-facing element gets its own Chad review — nothing that a real user reads or sees is skipped.** Use judgment about what "user-facing" means: prose, docs, READMEs, landing pages, the HTML/CSS a user renders, and **images they see** (Chad is multimodal — he looks at the picture itself, not just its `![…]` reference). Skip only behind-the-scenes plumbing a user never meets: build config, CI yaml, lockfiles, generated code, test fixtures, internal scripts. When in doubt, include it — cost is not the constraint, coverage is. Text elements get the full Chad↔defender rewrite debate; images get a look and a verdict (does it earn its place, or is it decoration).
+**Every user-facing element gets its own Chad review — nothing that a real user reads or sees is skipped.** Use judgment about what "user-facing" means: prose, docs, READMEs, landing pages, the HTML/CSS a user renders, and **images they see** (Chad is multimodal — he looks at the picture itself, not just its `![…]` reference). Skip only behind-the-scenes plumbing a user never meets: build config, CI yaml, lockfiles, generated code, test fixtures, internal scripts.
 
 ## How the workflow works
 
