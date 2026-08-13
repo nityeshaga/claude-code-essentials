@@ -1,6 +1,6 @@
 {
   "name": "claude-code-essentials",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Essential Claude Code plugins for developers",
   "owner": {
     "name": "Nityesh Agarwal"
@@ -20,8 +20,8 @@
     },
     {
       "name": "chad-review",
-      "description": "Strip the showing-off from any artifact by making it survive Chad — an impatient user who only cares about the job and refuses to be impressed. Ships a reusable workflow + skill.",
-      "version": "0.2.1",
+      "description": "Strip the showing-off from any artifact by making it survive Chad — an impatient user who only cares about the job and refuses to be impressed. Chad asks the dumbest honest questions, a defender rewrites it plainer, and the same Chad keeps debating round after round (default 3). Ships a reusable workflow + skill.",
+      "version": "0.3.0",
       "source": "./plugins/chad-review"
     },
     {
