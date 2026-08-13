@@ -1,17 +1,25 @@
 export const meta = {
   name: 'chad-review',
-  description: "Strip the showing-off from a CLONE of an artifact. Chad -- an impatient user who only cares about the job and refuses to be impressed -- meets each part cold and asks the dumbest honest questions he has; a defender ties every span to the job or rewrites it plainer. A FRESH Chad re-reads the rewrite (up to 2 rounds, so new showing-off can't sneak back in), then a single judge accepts the plainer copy and returns a review-plan + a ranked add-back menu for any voice Chad sanded off. Original is never touched.",
-  whenToUse: 'When you want to strip the showing-off from an artifact -- purple prose, gold-plating, invented caveats, self-narration, sounding-smart -- and get a reviewable, file-grained plan of plainer rewrites back.',
+  description: "Strip the showing-off from a CLONE of an artifact. Triage picks every USER-FACING file and image (skipping behind-the-scenes plumbing), then Chad -- an impatient user who only cares about the job and refuses to be impressed -- meets each cold and asks the dumbest honest questions he has. On text a defender rewrites it plainer and a FRESH Chad re-reads (up to 2 rounds); on images (Chad is multimodal) he critiques it part by part and a defender remakes it directly if it has the tools, else returns a plan to update it. A single judge accepts the plainer copy and returns a review-plan + image findings + a ranked add-back menu for any voice Chad sanded off. Original is never touched.",
+  whenToUse: 'When you want to strip the showing-off from an artifact -- purple prose, gold-plating, invented caveats, self-narration, sounding-smart, decorative images -- across every user-facing file and get a reviewable plan back.',
   phases: [
-    { title: 'Clone', detail: 'copy the artifact so the swarm works on the clone' },
+    { title: 'Clone', detail: 'copy the artifact so the swarm works on the clone; list every file' },
     { title: 'Crux', detail: 'pin the job-to-be-done in one or two plain sentences (Chad\'s yardstick)' },
-    { title: 'Chad', detail: 'Chad meets each part cold and asks dumb questions; a defender rewrites it plainer; a fresh Chad re-reads the rewrite (up to 2 rounds)' },
-    { title: 'Judge', detail: 'single judge accepts the plainer copy; returns plan + ranked add-back menu' },
+    { title: 'Chad', detail: 'triage user-facing files, then Chad debates each -- text: rewrite plainer over 2 rounds; image: look + verdict' },
+    { title: 'Judge', detail: 'single judge accepts the plainer copy; returns plan + image findings + ranked add-back menu' },
   ],
 }
 
 // args (delivered as a JSON string by the tool): { path, crux?, cloneTo? } | { text, crux? }
-const A = (() => { try { return typeof args === 'string' ? JSON.parse(args) : (args || {}) } catch (e) { throw new Error('args not valid JSON: ' + e.message) } })()
+// Forgiving: a weak caller may pass a bare path instead of JSON. A single pathy token -> {path}; prose -> {text}.
+const A = (() => {
+  if (args && typeof args === 'object') return args
+  const s = String(args || '').trim()
+  if (!s) return {}
+  try { return JSON.parse(s) } catch (e) {
+    return (!/\s/.test(s) && /[\/.]/.test(s)) ? { path: s } : { text: s }
+  }
+})()
 const base = p => (p ? String(p).split('/').pop() : '?')
 
 // Chad's identity. Kept artifact-general on purpose (no writing-only words) so it ports to a diagram, a code plan, a landing page.
@@ -76,6 +84,37 @@ async function chadPass({ crux, unit, label, phaseName, contentBlock, extraNote 
   }
 }
 
+// A Chad pass over one USER-FACING image -- the same treatment text gets. Chad is multimodal: he LOOKS at the image and
+// critiques it part by part, like walking a page top to bottom. Then the defender's call: if it has the tools to edit or
+// regenerate the image, it REMAKES it directly into the clone (original untouched) and reports what changed; if it can't,
+// it returns a concrete PLAN to update it instead. Left open on purpose -- the agent decides which it can do.
+const IMG_Q_SCHEMA = { type: 'object', required: ['questions', 'birdsEye'], properties: { questions: { type: 'array', items: { type: 'string' } }, birdsEye: { type: 'string' } } }
+const IMG_DEFEND_SCHEMA = { type: 'object', required: ['verdict'], properties: {
+  verdict: { type: 'string', enum: ['keep', 'update', 'cut'] },
+  remadePath: { type: 'string' }, // set if the defender actually produced an updated image (saved in the clone)
+  plan: { type: 'array', items: { type: 'string' } }, // steps to update the image, when it wasn't remade directly
+  changeSummary: { type: 'string' }, // what changed, whether remade or planned
+  ledger: { type: 'array', items: { type: 'object', required: ['question', 'action'], properties: { question: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'argued'] }, note: { type: 'string' } } } },
+} }
+async function chadImagePass({ crux, path, label, phaseName }) {
+  const q = await agent(
+    `${CHAD}\n\nTHE CRUX: ${crux}\n\nOpen and LOOK at the image at ${path} with your tools -- you can see images. It's a user-facing visual in this artifact.\n\nWalk it like you'd walk a page top to bottom: go part by part -- the panels, the labels, the header, the characters, whatever it's made of -- and fire a dumb question at every piece that trips you. What is this part for? does it help me do the job, or is it decoration / clutter / showing off? Point at the specific region you mean. Return an EMPTY list only if nothing trips you.\n\nThen step back and give ONE blunt bird's-eye conclusion on the whole image: does it land, or is it too busy / off-message / doing more than the job needs?`,
+    { label: `chad:img:${label}`, phase: phaseName, schema: IMG_Q_SCHEMA },
+  )
+  const questions = (q.questions || []).filter(Boolean)
+  const defended = await agent(
+    `You are the defender of a user-facing image (${label}). An impatient user (Chad) looked at it cold and, part by part, asked:\n${questions.map((x, i) => `${i + 1}. ${x}`).join('\n') || '(no questions -- he had none)'}\n\nTHE CRUX (the job that must still get done): ${crux}\nThe image is at ${path} (this is the CLONE -- never touch the original).\n\n` +
+    `Decide its fate against the crux: kill decoration and showing-off, keep whatever genuinely helps the user do the job, push back on Chad where a part is earned. verdict: 'keep' (earns its place as-is), 'update' (it needs changes), or 'cut' (the job doesn't need this image).\n` +
+    `If 'update': if you HAVE tools to edit or regenerate images, REMAKE it directly -- write the improved image into the clone and return remadePath (where you saved it) + changeSummary. If you DON'T have those tools, return a concrete PLAN instead -- one step per change a designer could execute (cut, add, redo, relabel, simplify, move) -- plus changeSummary. Your call which one you can actually do.\n` +
+    `ALSO return ledger -- one row per question: action=fixed if your remake or plan addresses it, action=argued if you're keeping it as-is (note = why).`,
+    { label: `defend:img:${label}`, phase: phaseName, schema: IMG_DEFEND_SCHEMA },
+  )
+  return {
+    kind: 'image', verdict: defended.verdict, remadePath: defended.remadePath || null, plan: (defended.plan || []).filter(Boolean), changeSummary: defended.changeSummary || '',
+    report: { label, asked: questions.length, roundsRun: 1, questions, argued: (defended.ledger || []).filter(l => l.action === 'argued'), conclusions: q.birdsEye ? [{ round: 1, take: q.birdsEye }] : [] },
+  }
+}
+
 // ---- Phase 0: Clone ----
 phase('Clone')
 const isText = !!A.text && !A.path
@@ -86,14 +125,14 @@ if (!isText) {
   const manifest = await agent(
     `Clone an artifact so a review swarm can work on the copy without ever touching the original.\n` +
     `Run exactly:\n  rm -rf "${cloneRoot}" && cp -R "${A.path}" "${cloneRoot}"\n` +
-    `Then list every text file in the clone with line counts:\n  find "${cloneRoot}" -type f \\( -name '*.md' -o -name '*.rb' -o -name '*.js' -o -name '*.txt' -o -name '*.py' \\) -print0 | xargs -0 wc -l\n` +
-    `Return every file path (absolute, under the clone root) and its line count.`,
-    { label: 'clone', phase: 'Clone', schema: { type: 'object', required: ['files'], properties: { files: { type: 'array', items: { type: 'object', required: ['path', 'lines'], properties: { path: { type: 'string' }, lines: { type: 'integer' } } } } } } },
+    `Then list EVERY file in the clone (not just text), skipping only junk:\n  find "${cloneRoot}" -type f -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/build/*' -not -path '*/vendor/*' -not -name '.DS_Store' -print0 | xargs -0 wc -l 2>/dev/null\n` +
+    `For each file return: path (absolute, under the clone root); lines (0 for binary/image); and kind -- 'text' for anything readable (prose, markdown, HTML/CSS, code, config), 'image' for a picture a user sees (png/jpg/jpeg/gif/svg/webp), or 'other' for binary/data. Return all of them, unfiltered -- a later step decides what's user-facing.`,
+    { label: 'clone', phase: 'Clone', schema: { type: 'object', required: ['files'], properties: { files: { type: 'array', items: { type: 'object', required: ['path', 'lines', 'kind'], properties: { path: { type: 'string' }, lines: { type: 'integer' }, kind: { type: 'string', enum: ['text', 'image', 'other'] } } } } } } },
   )
   files = (manifest.files || []).filter(f => f.path && !/\/\.git\//.test(f.path))
   if (!files.length) throw new Error('clone produced no files -- aborting rather than reviewing an empty artifact')
 }
-const manifestStr = files.map(f => `${f.path} (${f.lines}L)`).join('\n')
+const manifestStr = files.map(f => `${f.path} (${f.kind === 'image' ? 'image' : f.lines + 'L'})`).join('\n')
 log(isText ? 'single-text mode' : `cloned ${files.length} files (${files.reduce((a, f) => a + f.lines, 0)}L) -> ${cloneRoot}`)
 
 // ---- Phase 0.5: Crux. The job-to-be-done, in plain words -- Chad's only context and yardstick. ----
@@ -112,6 +151,7 @@ log(`crux: ${crux}`)
 // ---- Phase 1: Chad. Meet every part cold and strip the showing-off. ----
 phase('Chad')
 let proposals = []
+const imageFindings = [] // Chad's verdicts on user-facing images -- verdict + guidance, no rewrite
 const chadReports = [] // one per unit Chad passed over -- feeds the end-of-run Chad report
 
 if (isText) {
@@ -129,26 +169,42 @@ if (isText) {
   )
   const burial = chadBirds.burial || []
 
-  // Every substantial file meets Chad. Tiny files rarely perform; skip them to save agents.
-  const reviewable = files.filter(f => f.lines >= 30)
+  // Triage: judgment, not a whitelist. Pick every USER-FACING file (incl. images); skip behind-the-scenes plumbing.
+  const triage = await agent(
+    `You are choosing what gets the Chad review. THE CRUX: ${crux}\n\nFile tree (clone root ${cloneRoot}):\n${manifestStr}\n\n` +
+    `Select every USER-FACING file -- anything a real user reads, sees, or lands on: docs / READMEs, landing pages, HTML/CSS a user renders, prose, marketing copy, and images they actually see. SKIP behind-the-scenes plumbing they never see: build config, CI yaml, lockfiles, generated code, test fixtures, internal tooling scripts -- UNLESS that file IS the artifact being shipped. Cost is no concern; when in doubt, include it. Return the paths to review.`,
+    { label: 'triage', phase: 'Chad', schema: { type: 'object', required: ['review'], properties: { review: { type: 'array', items: { type: 'object', required: ['path'], properties: { path: { type: 'string' }, why: { type: 'string' } } } } } } },
+  )
+  const pick = new Set((triage.review || []).map(r => r.path))
+  const selected = files.filter(f => pick.has(f.path) && f.kind !== 'other')
+  const textFiles = selected.filter(f => f.kind === 'text')
+  const imageFiles = selected.filter(f => f.kind === 'image')
+  log(`triage: ${selected.length} user-facing of ${files.length} files (${textFiles.length} text, ${imageFiles.length} image)`)
+
+  // Text files: the full Chad<->defender debate, up to 2 rounds. No line floor -- a short user-facing file still performs.
   const chadByFile = new Map()
-  await parallel(reviewable.map(f => () => {
+  await parallel(textFiles.map(f => () => {
     const bnotes = burial.filter(b => (b.files || []).some(y => y === f.path || base(y) === base(f.path)))
     const extraNote = bnotes.length ? `Bird's-eye burial notes for this file (fold into the fix): ` + bnotes.map(b => b.instruction).join('; ') : ''
     return chadPass({ crux, unit: 'file', label: base(f.path), phaseName: 'Chad', contentBlock: `(open and read ${f.path} with your tools)`, extraNote })
       .then(c => { chadByFile.set(f.path, c) })
   }))
-  const rewritten = [...chadByFile.values()].filter(c => c.decision === 'rewrite' && c.newText).length
   for (const c of chadByFile.values()) chadReports.push(c.report)
-  log(`chad: ${burial.length} burial notes; ${rewritten}/${reviewable.length} files rewritten to survive Chad`)
-
   let ri = 0
-  for (const f of reviewable) {
+  for (const f of textFiles) {
     const c = chadByFile.get(f.path)
     if (c && c.decision === 'rewrite' && c.newText) {
       proposals.push({ id: `file-${ri++}`, file: f.path, target: f.path, changeSummary: c.changeSummary || '', newText: c.newText })
     }
   }
+
+  // Image files: Chad is multimodal, so he LOOKS at each and a defender rules whether it earns its place (verdict + guidance, no rewrite).
+  await parallel(imageFiles.map(f => () =>
+    chadImagePass({ crux, path: f.path, label: base(f.path), phaseName: 'Chad' })
+      .then(im => { chadReports.push(im.report); if (im.verdict !== 'keep') imageFindings.push({ id: `img-${imageFindings.length}`, file: f.path, target: f.path, verdict: im.verdict, remadePath: im.remadePath, plan: im.plan, changeSummary: im.changeSummary }) }),
+  ))
+  const rewritten = [...chadByFile.values()].filter(c => c.decision === 'rewrite' && c.newText).length
+  log(`chad: ${burial.length} burial notes; ${rewritten}/${textFiles.length} text files rewritten; ${imageFiles.length} images looked at, ${imageFindings.length} flagged`)
 }
 
 // ---- Chad report: what the interrogation actually looked like, for the human to see (not just the verdict). ----
@@ -166,8 +222,14 @@ const chadReport = chadReports.length ? (() => {
 })() : null
 if (chadReport) log(`chad report: ${chadReport.totalAsked} questions across ${chadReport.filesReviewed}; defender argued against ${chadReport.argued.length}; ${chadReport.conclusions.length} bird's-eye conclusions`)
 
-if (!proposals.length) return { cloneRoot, crux, chadReport, proposalCount: 0, proposals: [], plan: { summary: 'Nothing to strip -- artifact already survives Chad.', decisions: [], addBackMenu: [] } }
-log(`${proposals.length} rewrites -> judge`)
+if (!proposals.length && !imageFindings.length) return { cloneRoot, crux, chadReport, proposalCount: 0, proposals: [], imageFindings: [], plan: { summary: 'Nothing to strip -- artifact already survives Chad.', decisions: [], addBackMenu: [] } }
+
+// Text rewrites go to the judge; image findings are Chad's verdicts and stand on their own.
+if (!proposals.length) {
+  log(`0 rewrites; ${imageFindings.length} image finding(s)`)
+  return { cloneRoot, crux, chadReport, proposalCount: 0, proposals: [], imageFindings, plan: { summary: `No text rewrites survived Chad; ${imageFindings.length} user-facing image(s) flagged (see imageFindings).`, decisions: [], addBackMenu: [] } }
+}
+log(`${proposals.length} rewrites -> judge; ${imageFindings.length} image finding(s)`)
 
 // ---- Phase 2: Single judge, one coherent knife. Accept the plainer copy unless it dropped something load-bearing. ----
 phase('Judge')
@@ -195,5 +257,6 @@ return {
   chadReport,
   proposalCount: proposals.length,
   proposals: proposals.map(p => ({ id: p.id, file: p.file, changeSummary: p.changeSummary, newText: p.newText })),
+  imageFindings,
   plan,
 }
