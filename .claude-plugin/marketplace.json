@@ -1,6 +1,6 @@
 {
   "name": "claude-code-essentials",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "description": "Essential Claude Code plugins for developers",
   "owner": {
     "name": "Nityesh Agarwal"
@@ -9,7 +9,7 @@
     {
       "name": "basics",
       "description": "Essential commands, agents, hooks, and skills for everyday development workflows",
-      "version": "1.8.1",
+      "version": "1.8.2",
       "source": "./plugins/basics"
     },
     {
