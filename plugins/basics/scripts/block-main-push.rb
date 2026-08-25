@@ -76,7 +76,8 @@ def implicit_push?(push_args)
 end
 
 def current_branch_is_main?(project_dir)
-  branch = `cd "#{project_dir}" && git rev-parse --abbrev-ref HEAD 2>/dev/null`.strip
+  head_content = File.read(File.join(project_dir, '.git', 'HEAD')).strip
+  branch = head_content.sub(/\Aref: refs\/heads\//, '')
   %w[main master].include?(branch.downcase)
 rescue StandardError
   false
