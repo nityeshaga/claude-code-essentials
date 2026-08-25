@@ -23,12 +23,6 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 | `/review` | Objective branch review for code smells and unintended changes |
 | `/tidy-commits` | Organize changes into reviewable commits |
 
-## Agents
-
-| Agent | Description |
-|-------|-------------|
-| `dhh-reviewer` | DHH-style code reviewer providing brutally honest Rails code review |
-
 ## Hooks
 
 | Hook | Description |
