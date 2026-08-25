@@ -36,9 +36,6 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 **Commands (11):**
 `/cc`, `/cleanup`, `/compound`, `/create-developer-doc`, `/depcheck`, `/gem-upgrade`, `/help-me-write`, `/interview-me`, `/pinpoint`, `/review`, `/tidy-commits`
 
-**Agents (1):**
-- `dhh-reviewer` - DHH-style code reviewer
-
 **Hooks:**
 - `block-main-push` - Prevents accidental git pushes to main branch
 
