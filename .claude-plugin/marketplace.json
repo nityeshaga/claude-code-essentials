@@ -9,7 +9,7 @@
     {
       "name": "basics",
       "description": "Essential commands, agents, hooks, and skills for everyday development workflows",
-      "version": "1.8.2",
+      "version": "1.8.3",
       "source": "./plugins/basics"
     },
     {

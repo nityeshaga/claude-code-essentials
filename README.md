@@ -37,7 +37,7 @@ Essential Claude Code commands, agents, hooks, and skills for everyday developme
 `/cc`, `/cleanup`, `/compound`, `/create-developer-doc`, `/depcheck`, `/gem-upgrade`, `/help-me-write`, `/interview-me`, `/pinpoint`, `/review`, `/tidy-commits`
 
 **Hooks:**
-- `block-main-push` - Prevents accidental git pushes to main branch
+- `rubocop-autocorrect` - Runs `bin/rubocop -a` on edited files in projects that have it
 
 **Skills (4):**
 - `ai-tool-designer` - Designing tools for AI agents
@@ -53,7 +53,7 @@ Prevents accidental pushes to main branch in Claude Code bypassPermissions mode.
 
 **Important:** Install at the **user level** (`~/.claude/settings.json`) to protect all repositories.
 
-**The vulnerability:** If Repo A has `basics` installed at project level but Repo B has no plugin, Claude running in Repo B can push to Repo A's main branch via `git -C /path/to/RepoA push origin main`. Project-level hooks don't help - protection depends on where Claude runs, not the target repo.
+**The vulnerability:** If Repo A has this hook installed at project level but Repo B has no plugin, Claude running in Repo B can push to Repo A's main branch via `git -C /path/to/RepoA push origin main`. Project-level hooks don't help - protection depends on where Claude runs, not the target repo.
 
 **Hooks:**
 - `block-main-push` - Blocks git pushes to main branch (PreToolUse on Bash)
